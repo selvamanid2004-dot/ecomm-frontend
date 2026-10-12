@@ -167,6 +167,7 @@ export interface CustomerOrder {
                 [alt]="p.name"
                 class="product-image"
                 loading="lazy"
+                decoding="async"
               />
               <span *ngIf="p.stock_quantity <= 0" class="stock-pill low-stock">
                 Sold Out
@@ -1557,11 +1558,114 @@ export interface CustomerOrder {
       to { opacity: 1; transform: translateY(0); }
     }
 
-    @media (max-width: 768px) {
-      .checkout-grid { grid-template-columns: 1fr; }
-      .hero-heading { font-size: 2rem; }
-      .products-grid { grid-template-columns: 1fr; }
-      .customer-session-group { flex-wrap: wrap; }
+    @media (max-width: 900px) {
+      .products-grid {
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.25rem;
+      }
+      .checkout-grid {
+        grid-template-columns: 1fr;
+      }
+      .hero-heading {
+        font-size: 2.25rem;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .main-header .container {
+        padding-left: 0.85rem;
+        padding-right: 0.85rem;
+        height: auto;
+        min-height: 4rem;
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+        gap: 0.5rem;
+      }
+      .top-announcement .container {
+        flex-direction: column;
+        gap: 0.25rem;
+        text-align: center;
+        padding: 0.35rem 0.75rem;
+      }
+      .brand-title {
+        font-size: 1.25rem;
+      }
+      .brand-tag {
+        font-size: 0.65rem;
+      }
+      .header-actions {
+        gap: 0.35rem;
+      }
+      .orders-nav-btn {
+        padding: 0.35rem 0.55rem;
+      }
+      .orders-label, .cart-label {
+        display: none;
+      }
+      .cart-price {
+        display: none;
+      }
+      .user-pill {
+        padding: 0.25rem;
+      }
+      .user-name {
+        display: none;
+      }
+      .hero-section {
+        padding: 2.25rem 1rem;
+      }
+      .hero-heading {
+        font-size: 1.65rem;
+        line-height: 1.2;
+      }
+      .hero-subheading {
+        font-size: 0.825rem;
+        padding: 0 0.25rem;
+      }
+      .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+      }
+      .products-grid {
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+      }
+      .image-wrapper {
+        height: 230px;
+      }
+      .product-details {
+        padding: 1rem;
+      }
+      .product-name {
+        font-size: 1.1rem;
+      }
+      .current-price {
+        font-size: 1.25rem;
+      }
+      .cart-drawer {
+        width: 100vw;
+        max-width: 100vw;
+        right: -100vw;
+      }
+      .modal-backdrop {
+        padding: 0.5rem;
+        align-items: flex-end;
+      }
+      .modal-card {
+        border-radius: 1rem 1rem 0 0;
+        max-height: 94vh;
+        width: 100%;
+      }
+      .checkout-form {
+        padding: 1rem;
+      }
+      .toast-notification {
+        left: 1rem;
+        right: 1rem;
+        bottom: 1rem;
+        text-align: center;
+      }
     }
   `],
 })
@@ -1736,11 +1840,12 @@ export class SingleStoreComponent implements OnInit, OnDestroy {
     if (p.images && p.images.length > 0 && p.images[0].image_url) {
       const u = p.images[0].image_url;
       if (u.startsWith('/uploads')) {
-        return `http://localhost:5000${u}`;
+        const apiHost = environment.apiUrl.replace(/\/api\/v1\/?$/, '');
+        return `${apiHost}${u}`;
       }
       return u;
     }
-    return 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1000&q=80';
+    return 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=75';
   }
 
   incrementQty(p: StoreProduct): void {

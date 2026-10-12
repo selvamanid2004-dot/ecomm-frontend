@@ -423,6 +423,22 @@ import { AuthService } from '../../core/services/auth.service';
         padding: 1.25rem 1rem;
       }
     }
+
+    @media (max-width: 640px) {
+      .admin-header {
+        padding: 0 1rem;
+        height: 3.75rem;
+      }
+      .admin-badge-chip {
+        display: none;
+      }
+      .admin-content-body {
+        padding: 1rem 0.75rem;
+      }
+      .system-status {
+        display: none;
+      }
+    }
   `],
 })
 export class AdminLayoutComponent {

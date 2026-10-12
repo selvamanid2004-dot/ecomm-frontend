@@ -242,6 +242,14 @@ import { AdminMetrics } from '../../core/models/ecommerce.models';
 
     @media (max-width: 640px) {
       .kpi-grid { grid-template-columns: 1fr; }
+      .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+      }
+      .page-header .btn {
+        width: 100%;
+      }
     }
   `],
 })
@@ -251,12 +259,12 @@ export class AdminDashboardComponent implements OnInit {
   refreshing = signal<boolean>(false);
 
   ngOnInit(): void {
-    this.refresh();
+    this.refresh(false);
   }
 
-  refresh(): void {
+  refresh(force = true): void {
     this.refreshing.set(true);
-    this.adminService.getMetrics().subscribe({
+    this.adminService.getMetrics(force).subscribe({
       next: (res) => {
         if (res.success) this.metrics.set(res.data);
         this.refreshing.set(false);

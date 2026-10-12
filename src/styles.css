@@ -755,5 +755,44 @@ h1, h2, h3, h4, h5, h6 {
   border-bottom: 1px solid #e2e8f0;
 }
 
+/* ==========================================================================
+   MOBILE RESPONSIVENESS & PERFORMANCE ENHANCEMENTS
+   ========================================================================== */
+img {
+  max-width: 100%;
+  height: auto;
+}
 
+/* Smooth Touch Scrolling for Table Wrappers */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 
+@media (max-width: 768px) {
+  .container {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+  .table th, .table td {
+    padding: 0.65rem 0.75rem !important;
+    font-size: 0.8125rem !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .modal-dialog {
+    width: 95% !important;
+    max-width: 95% !important;
+    margin: 1rem auto !important;
+    border-radius: 12px !important;
+  }
+  .card {
+    padding: 1.15rem !important;
+    border-radius: 10px !important;
+  }
+  .btn {
+    min-height: 2.35rem;
+  }
+}

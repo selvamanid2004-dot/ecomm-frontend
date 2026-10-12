@@ -235,6 +235,20 @@ import { Product, Category } from '../../core/models/ecommerce.models';
     .border-b { border-bottom: 1px solid #e2e8f0; }
     .border-t { border-top: 1px solid #e2e8f0; }
     .cursor-pointer { cursor: pointer; }
+    @media (max-width: 640px) {
+      .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+      }
+      .page-header .btn {
+        width: 100%;
+      }
+      .modal-dialog {
+        width: 95% !important;
+        margin: 1rem auto;
+      }
+    }
   `],
 })
 export class AdminProductsComponent implements OnInit {

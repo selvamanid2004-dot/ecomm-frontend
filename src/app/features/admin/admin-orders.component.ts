@@ -139,7 +139,13 @@ import { Order } from '../../core/models/ecommerce.models';
               </tr>
             </thead>
             <tbody>
-              <tr *ngIf="filteredOrders().length === 0">
+              <tr *ngIf="loading() && orders().length === 0">
+                <td colspan="8" class="text-center py-12 text-muted text-sm">
+                  <div class="spinner-inline mb-2"></div>
+                  <span class="block text-xs font-semibold text-slate-500">Loading orders pipeline...</span>
+                </td>
+              </tr>
+              <tr *ngIf="!loading() && filteredOrders().length === 0">
                 <td colspan="8" class="text-center py-12 text-muted text-sm">
                   No orders found matching the filter or search query.
                 </td>
@@ -801,12 +807,52 @@ import { Order } from '../../core/models/ecommerce.models';
         width: 100%;
       }
     }
+
+    @media (max-width: 640px) {
+      .kpi-ribbon-grid {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+      }
+      .filter-tabs-wrapper {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .filter-pills {
+        width: 100%;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 0.25rem;
+      }
+      .filter-pill-btn {
+        white-space: nowrap;
+        padding: 0.35rem 0.65rem;
+        font-size: 0.75rem;
+      }
+      .header-actions {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .search-wrap {
+        width: 100%;
+      }
+      .status-cards-grid {
+        grid-template-columns: 1fr;
+      }
+      .update-status-dialog {
+        width: 98%;
+        max-height: 94vh;
+        overflow-y: auto;
+      }
+    }
   `],
 })
 export class AdminOrdersComponent implements OnInit, OnDestroy {
   private adminService = inject(AdminService);
 
   orders = signal<Order[]>([]);
+  loading = signal(false);
   statusFilter = '';
   searchQuery = signal('');
 
@@ -865,10 +911,12 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.fetchOrders();
-    // Auto-poll orders so when customer places order, it immediately appears
+    // Smart auto-poll: only when browser tab is active/visible
     this.refreshInterval = setInterval(() => {
-      this.fetchOrders();
-    }, 8000);
+      if (typeof document !== 'undefined' && !document.hidden) {
+        this.fetchOrders(false);
+      }
+    }, 15000);
   }
 
   ngOnDestroy(): void {
@@ -877,13 +925,19 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     }
   }
 
-  fetchOrders(): void {
+  fetchOrders(forceRefresh = true): void {
+    if (this.orders().length === 0) {
+      this.loading.set(true);
+    }
     // Fetch all orders without server filter so KPI counts remain accurate
-    this.adminService.getOrders({ limit: 100 }).subscribe({
+    this.adminService.getOrders({ limit: 100 }, forceRefresh).subscribe({
       next: (res) => {
         if (res.success) this.orders.set(res.data || []);
+        this.loading.set(false);
       },
-      error: () => {},
+      error: () => {
+        this.loading.set(false);
+      },
     });
   }
 

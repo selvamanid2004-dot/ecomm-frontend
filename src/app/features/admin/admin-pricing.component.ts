@@ -207,6 +207,9 @@ import { Product } from '../../core/models/ecommerce.models';
     @media (max-width: 1024px) {
       .pricing-console-grid { grid-template-columns: 1fr; }
     }
+    @media (max-width: 640px) {
+      .grid-cols-2 { grid-template-columns: 1fr; }
+    }
   `],
 })
 export class AdminPricingComponent implements OnInit {
