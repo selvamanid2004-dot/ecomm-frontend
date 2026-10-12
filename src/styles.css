@@ -1,0 +1,759 @@
+/* ==========================================================================
+   LUXE DESIGN SYSTEM - PREMIUM LUXURY E-COMMERCE STYLING
+   ========================================================================== */
+
+:root {
+  /* Color Tokens - Modern Slate & Warm Champagne Luxury Palette */
+  --color-primary: #0f172a;       /* Deep Obsidian */
+  --color-primary-light: #1e293b; /* Slate 800 */
+  --color-brand: #d97706;         /* Amber Gold */
+  --color-brand-hover: #b45309;
+  --color-brand-glow: rgba(217, 119, 6, 0.18);
+  --color-accent: #0284c7;        /* Azure Sapphire */
+  --color-accent-light: #e0f2fe;
+
+  --color-bg: #f8fafc;            /* Canvas background */
+  --color-surface: #ffffff;       /* Card / Modal surface */
+  --color-surface-subtle: #f1f5f9;
+  --color-surface-border: #e2e8f0;
+
+  --color-text-main: #0f172a;
+  --color-text-muted: #64748b;
+  --color-text-subtle: #94a3b8;
+
+  --color-success: #10b981;
+  --color-success-bg: #ecfdf5;
+  --color-warning: #f59e0b;
+  --color-warning-bg: #fffbeb;
+  --color-danger: #ef4444;
+  --color-danger-bg: #fef2f2;
+
+  /* Typography */
+  --font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
+
+  /* Elevation Shadows */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 2px 4px 0 rgba(0, 0, 0, 0.06), 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px -1px rgba(0, 0, 0, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 12px 28px -4px rgba(15, 23, 42, 0.1), 0 8px 16px -4px rgba(15, 23, 42, 0.06);
+  --shadow-xl: 0 24px 48px -12px rgba(15, 23, 42, 0.18);
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-spring: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Base Reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-family: var(--font-family);
+  font-size: 16px;
+  scroll-behavior: smooth;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text-main);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  outline: none;
+}
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+
+/* ==========================================================================
+   BUTTONS & CONTROLS
+   ========================================================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.4rem;
+  font-size: 0.925rem;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-smooth);
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2);
+}
+.btn-primary:hover {
+  background: var(--color-primary-light);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.28);
+}
+
+.btn-brand {
+  background: linear-gradient(135deg, var(--color-brand) 0%, #b45309 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 16px var(--color-brand-glow);
+}
+.btn-brand:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(217, 119, 6, 0.35);
+}
+
+.btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-text-main);
+  border: 1px solid var(--color-surface-border);
+  box-shadow: var(--shadow-xs);
+}
+.btn-secondary:hover {
+  background: var(--color-surface-subtle);
+  border-color: #cbd5e1;
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--color-primary);
+  border: 1.5px solid var(--color-primary);
+}
+.btn-outline:hover {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.btn-sm {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.825rem;
+  border-radius: var(--radius-sm);
+}
+
+.btn-lg {
+  padding: 0.95rem 1.9rem;
+  font-size: 1.05rem;
+  border-radius: var(--radius-lg);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* ==========================================================================
+   INPUTS & FORMS
+   ========================================================================== */
+
+.form-group {
+  margin-bottom: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.form-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.form-control {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1.5px solid var(--color-surface-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-main);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.form-control:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08);
+}
+
+.form-error {
+  font-size: 0.785rem;
+  color: var(--color-danger);
+  margin-top: 0.2rem;
+}
+
+/* ==========================================================================
+   CARDS & CONTAINERS
+   ========================================================================== */
+
+.container {
+  width: 100%;
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-surface-border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-smooth), box-shadow var(--transition-smooth);
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ==========================================================================
+   BADGES & PILLS
+   ========================================================================== */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-gold {
+  background: #fef3c7;
+  color: #92400e;
+}
+.badge-success {
+  background: var(--color-success-bg);
+  color: #065f46;
+}
+.badge-danger {
+  background: var(--color-danger-bg);
+  color: #991b1b;
+}
+.badge-info {
+  background: #e0f2fe;
+  color: #075985;
+}
+.badge-slate {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+/* ==========================================================================
+   MODALS & OVERLAYS
+   ========================================================================== */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1.5rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-dialog {
+  background: var(--color-surface);
+  border-radius: var(--radius-xl);
+  max-width: 640px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-xl);
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ==========================================================================
+   TABLES
+   ========================================================================== */
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.885rem;
+}
+
+.table th {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-muted);
+  font-weight: 600;
+  text-align: left;
+  padding: 0.85rem 1rem;
+  border-bottom: 1.5px solid var(--color-surface-border);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--color-surface-border);
+  vertical-align: middle;
+}
+
+.table tr:hover td {
+  background: #f8fafc;
+}
+
+/* ==========================================================================
+   HEADINGS & TYPOGRAPHY
+   ========================================================================== */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   ADMIN PANEL ENTERPRISE DESIGN SYSTEM
+   ========================================================================== */
+.admin-shell {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  min-height: 100vh;
+  display: flex;
+}
+
+.admin-sidebar {
+  background: #0f172a !important;
+  color: #f1f5f9 !important;
+  border-right: 1px solid #1e293b !important;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 50;
+}
+
+.admin-main {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.admin-header {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.admin-main h1,
+.admin-main h2,
+.admin-main h3,
+.admin-main h4 {
+  color: #0f172a !important;
+  font-family: var(--font-heading);
+}
+
+.admin-main p.text-muted,
+.admin-main span.text-muted {
+  color: #64748b !important;
+  font-weight: 500;
+}
+
+.admin-main .card {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.03) !important;
+}
+
+.admin-main .card-header-bar {
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-main .table-header-bar {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  padding: 1rem 1.25rem;
+}
+
+.admin-main .table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.admin-main .table th {
+  background: #f8fafc !important;
+  color: #475569 !important;
+  font-weight: 700 !important;
+  border-bottom: 1.5px solid #e2e8f0 !important;
+  text-transform: uppercase;
+  font-size: 0.725rem;
+  letter-spacing: 0.06em;
+  padding: 0.85rem 1.25rem;
+  white-space: nowrap;
+}
+
+.admin-main .table td {
+  color: #1e293b !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  background: #ffffff !important;
+  padding: 0.95rem 1.25rem;
+  font-size: 0.875rem;
+  vertical-align: middle;
+}
+
+.admin-main .table tr:last-child td {
+  border-bottom: none !important;
+}
+
+.admin-main .table tr:hover td {
+  background: #f8fafc !important;
+}
+
+/* Modals & Close Buttons */
+.admin-main .modal-backdrop {
+  background: rgba(15, 23, 42, 0.6) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+.admin-main .modal-dialog {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.15), 0 8px 10px -6px rgba(15, 23, 42, 0.1) !important;
+  overflow: hidden;
+}
+
+.modal-close-btn {
+  width: 2rem;
+  height: 2rem;
+  min-width: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.modal-close-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+  transform: scale(1.05);
+}
+
+/* Inputs & Form Controls */
+.admin-main .form-control {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1.5px solid #cbd5e1 !important;
+  border-radius: 8px !important;
+  padding: 0.625rem 0.875rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 500;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.admin-main .form-control:focus {
+  border-color: #d97706 !important;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.18) !important;
+  outline: none;
+}
+
+.admin-main .form-label {
+  color: #334155 !important;
+  font-weight: 600 !important;
+  font-size: 0.8125rem !important;
+  margin-bottom: 0.35rem;
+  display: block;
+}
+
+/* Buttons Standardized */
+.admin-main .btn {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+
+.admin-main .btn-xs {
+  padding: 0.325rem 0.65rem;
+  font-size: 0.75rem;
+  border-radius: 6px;
+}
+
+.admin-main .btn-sm {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.8125rem;
+  border-radius: 8px;
+}
+
+.admin-main .btn-brand {
+  background: #d97706 !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(217, 119, 6, 0.2);
+}
+.admin-main .btn-brand:hover {
+  background: #b45309 !important;
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.25);
+}
+
+.admin-main .btn-secondary {
+  background: #ffffff !important;
+  color: #334155 !important;
+  border: 1px solid #cbd5e1 !important;
+}
+.admin-main .btn-secondary:hover {
+  background: #f8fafc !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+.admin-main .btn-danger {
+  background: #fee2e2 !important;
+  color: #b91c1c !important;
+  border: 1px solid #fca5a5 !important;
+}
+.admin-main .btn-danger:hover {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border-color: #dc2626 !important;
+}
+
+.admin-main .btn-success {
+  background: #dcfce7 !important;
+  color: #15803d !important;
+  border: 1px solid #86efac !important;
+}
+.admin-main .btn-success:hover {
+  background: #16a34a !important;
+  color: #ffffff !important;
+}
+
+.admin-main .btn-warning {
+  background: #fef3c7 !important;
+  color: #b45309 !important;
+  border: 1px solid #fde68a !important;
+}
+.admin-main .btn-warning:hover {
+  background: #d97706 !important;
+  color: #ffffff !important;
+}
+
+/* Badges */
+.admin-main .badge {
+  font-size: 0.725rem;
+  font-weight: 700;
+  padding: 0.25rem 0.625rem;
+  border-radius: 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-main .badge-gold {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+.admin-main .badge-success {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+.admin-main .badge-danger {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+.admin-main .badge-info {
+  background: #e0f2fe;
+  color: #075985;
+  border: 1px solid #bae6fd;
+}
+.admin-main .badge-slate {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+/* Success / Error Banners */
+.admin-alert-success {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  padding: 0.85rem 1.15rem;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-alert-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 0.85rem 1.15rem;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ==========================================================================
+   ADMIN NUMERIC PRICE STEPPER CONTROLS (₹1 Increment / Decrement)
+   ========================================================================== */
+.price-stepper-wrap {
+  display: flex;
+  align-items: stretch;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.15s ease;
+  width: 100%;
+}
+
+.price-stepper-wrap:focus-within {
+  border-color: #d97706;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+}
+
+.price-stepper-prefix {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.85rem;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #d97706;
+  background: #f8fafc;
+  border-right: 1px solid #e2e8f0;
+  user-select: none;
+}
+
+.price-stepper-input {
+  flex: 1;
+  border: none !important;
+  background: transparent !important;
+  padding: 0.65rem 0.85rem !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-size: 0.95rem !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  outline: none !important;
+  box-shadow: none !important;
+  width: 100%;
+}
+
+/* Hide native browser arrows on input to allow our custom styled arrows to work cleanly */
+.price-stepper-input::-webkit-outer-spin-button,
+.price-stepper-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.price-stepper-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.price-stepper-controls {
+  display: flex;
+  flex-direction: column;
+  width: 2.25rem;
+  border-left: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.price-stepper-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.1s ease;
+  user-select: none;
+}
+
+.price-stepper-btn:hover {
+  background: #e2e8f0;
+  color: #d97706;
+}
+
+.price-stepper-btn:active {
+  background: #cbd5e1;
+  color: #b45309;
+}
+
+.price-stepper-btn.btn-up {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+
+
