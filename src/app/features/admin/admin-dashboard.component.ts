@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { AdminService } from '../../core/services/admin.service';
+import { ExportService } from '../../core/services/export.service';
 import { AdminMetrics } from '../../core/models/ecommerce.models';
 
 @Component({
@@ -11,14 +12,22 @@ import { AdminMetrics } from '../../core/models/ecommerce.models';
   template: `
     <div class="dashboard-page" *ngIf="metrics(); else loadingTpl">
       <!-- Page Header -->
-      <div class="page-header flex-between mb-6">
+      <div class="page-header flex-between mb-6 flex-wrap gap-4">
         <div>
           <h1 class="page-title text-2xl font-extrabold text-slate-900">Executive Dashboard</h1>
           <p class="text-xs text-muted mt-1">Real-time revenue metrics, order fulfillment pipeline, and live system operations.</p>
         </div>
-        <button (click)="refresh()" [disabled]="refreshing()" class="btn btn-secondary btn-sm">
-          <span>⟳</span> {{ refreshing() ? 'Updating...' : 'Refresh Analytics' }}
-        </button>
+        <div class="header-actions flex items-center gap-2 flex-wrap">
+          <button (click)="exportPdf()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export Dashboard Report as PDF">
+            <span>📄</span> Export PDF
+          </button>
+          <button (click)="exportExcel()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export Dashboard Report as Excel">
+            <span>📊</span> Export Excel
+          </button>
+          <button (click)="refresh()" [disabled]="refreshing()" class="btn btn-primary btn-sm font-bold">
+            <span>⟳</span> {{ refreshing() ? 'Updating...' : 'Refresh Analytics' }}
+          </button>
+        </div>
       </div>
 
       <!-- KPI Metrics Grid -->
@@ -255,6 +264,7 @@ import { AdminMetrics } from '../../core/models/ecommerce.models';
 })
 export class AdminDashboardComponent implements OnInit {
   private adminService = inject(AdminService);
+  private exportService = inject(ExportService);
   metrics = signal<AdminMetrics | null>(null);
   refreshing = signal<boolean>(false);
 
@@ -270,6 +280,73 @@ export class AdminDashboardComponent implements OnInit {
         this.refreshing.set(false);
       },
       error: () => this.refreshing.set(false),
+    });
+  }
+
+  exportPdf(): void {
+    const m = this.metrics();
+    if (!m) return;
+    const ov = m.overview || ({} as any);
+    const headers = ['Category', 'Key Performance Indicator', 'Value / Details (₹)'];
+    const rows = [
+      ['Financial Performance', 'Total Settled Revenue', `₹ ${Number(ov.totalRevenue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`],
+      ['Fulfillment Operations', 'Total Orders Placed', String(ov.totalOrders || 0)],
+      ['Fulfillment Operations', 'Pending Orders', String(ov.pendingOrders || 0)],
+      ['Catalog & Inventory', 'Active Published Creations', String(ov.totalProducts || 0)],
+      ['Catalog & Inventory', 'Inventory Alerts (Low Stock)', String(ov.lowStockProducts || 0)],
+      ['Customer Base', 'Registered Customer Accounts', String(ov.totalCustomers || 0)],
+    ];
+
+    if (m.recentOrders && m.recentOrders.length > 0) {
+      m.recentOrders.forEach((o) => {
+        rows.push([
+          'Recent Orders',
+          `Order #${o.orderNumber} - ${o.customerName}`,
+          `₹ ${Number(o.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })} [${(o.status || '').toUpperCase()}]`,
+        ]);
+      });
+    }
+
+    this.exportService.exportTableToPdf({
+      filename: `Dashboard_Executive_Report_${Date.now()}`,
+      title: 'Executive Dashboard & KPI Analytics Report',
+      subtitle: 'Complete real-time revenue, order fulfillment status, and catalog overview',
+      headers,
+      rows,
+    });
+  }
+
+  exportExcel(): void {
+    const m = this.metrics();
+    if (!m) return;
+    const ov = m.overview || ({} as any);
+    const headers = ['Category', 'Key Performance Indicator', 'Value', 'Details / Notes'];
+    const rows: (string | number)[][] = [
+      ['Revenue', 'Total Revenue', Number(ov.totalRevenue || 0), 'Settled and confirmed customer payments in ₹'],
+      ['Orders', 'Total Orders', Number(ov.totalOrders || 0), 'All customer orders'],
+      ['Orders', 'Pending Orders', Number(ov.pendingOrders || 0), 'Orders awaiting fulfillment dispatch'],
+      ['Inventory', 'Active Products', Number(ov.totalProducts || 0), 'Published live products on storefront'],
+      ['Inventory', 'Low Stock Alerts', Number(ov.lowStockProducts || 0), 'Creations at or below threshold'],
+      ['Customers', 'Total Customers', Number(ov.totalCustomers || 0), 'Registered customer accounts'],
+    ];
+
+    if (m.recentOrders && m.recentOrders.length > 0) {
+      m.recentOrders.forEach((o) => {
+        rows.push([
+          'Recent Order',
+          o.orderNumber,
+          Number(o.totalAmount || 0),
+          `Customer: ${o.customerName} | Status: ${o.status} | Placed: ${new Date(o.createdAt).toLocaleDateString('en-IN')}`,
+        ]);
+      });
+    }
+
+    this.exportService.exportTableToExcel({
+      filename: `Dashboard_Executive_Report_${Date.now()}`,
+      sheetName: 'Executive KPI Report',
+      title: 'Executive Dashboard & Financial Performance Report',
+      headers,
+      rows,
     });
   }
 }

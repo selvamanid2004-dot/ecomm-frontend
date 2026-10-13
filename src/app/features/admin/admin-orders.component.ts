@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService } from '../../core/services/admin.service';
+import { ExportService } from '../../core/services/export.service';
 import { Order } from '../../core/models/ecommerce.models';
 
 @Component({
@@ -17,7 +18,7 @@ import { Order } from '../../core/models/ecommerce.models';
           <p class="text-xs text-muted mt-1">Review orders, manage fulfillment pipelines, and update carrier tracking details.</p>
         </div>
 
-        <div class="header-actions flex items-center gap-3 flex-wrap">
+        <div class="header-actions flex items-center gap-2 flex-wrap">
           <div class="search-wrap">
             <input
               type="text"
@@ -27,6 +28,13 @@ import { Order } from '../../core/models/ecommerce.models';
               class="form-control text-xs order-search-input"
             />
           </div>
+
+          <button (click)="exportAllPdf()" [disabled]="exporting()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export all orders as PDF">
+            <span>📄</span> Export PDF
+          </button>
+          <button (click)="exportAllExcel()" [disabled]="exporting()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export all orders as Excel">
+            <span>📊</span> Export Excel
+          </button>
 
           <button (click)="fetchOrders()" class="btn btn-secondary btn-sm" title="Refresh orders list">
             <span>⟳</span> Refresh
@@ -222,6 +230,13 @@ import { Order } from '../../core/models/ecommerce.models';
                 <!-- Action Controls -->
                 <td style="text-align: right;">
                   <div class="action-buttons-cell flex gap-2 justify-end items-center">
+                    <button
+                      (click)="downloadInvoice(ord)"
+                      class="btn btn-secondary btn-xs font-bold flex items-center gap-1"
+                      title="Download Official Tax Invoice PDF"
+                    >
+                      📄 Invoice
+                    </button>
                     <button
                       (click)="openManageModal(ord)"
                       class="btn btn-secondary btn-xs font-bold update-status-btn"
@@ -850,9 +865,11 @@ import { Order } from '../../core/models/ecommerce.models';
 })
 export class AdminOrdersComponent implements OnInit, OnDestroy {
   private adminService = inject(AdminService);
+  private exportService = inject(ExportService);
 
   orders = signal<Order[]>([]);
   loading = signal(false);
+  exporting = signal(false);
   statusFilter = '';
   searchQuery = signal('');
 
@@ -988,6 +1005,108 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
           alert(err.error?.message || 'Failed to delete order');
         },
       });
+    }
+  }
+
+  exportAllPdf(): void {
+    this.exporting.set(true);
+    this.adminService.getOrders({ all: 'true' }, true).subscribe({
+      next: (res) => {
+        this.exporting.set(false);
+        const orderList = res.success ? (res.data || []) : this.orders();
+        const headers = ['Order #', 'Invoice #', 'Customer / Recipient', 'Amount (₹)', 'Payment', 'Status', 'Tracking #', 'Placed Date'];
+        const rows = orderList.map((o) => {
+          const inv = (o as any).invoice_number || `INV-${(o.order_number || o.id).replace('ORD-', '')}`;
+          const cust = (o as any).shipping_address_json?.recipient_name || o.guest_email || 'Patron';
+          const email = o.guest_email ? ` (${o.guest_email})` : '';
+          const amt = `₹ ${Number(o.total_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+          const pay = (o.payment_status || 'PAID').toUpperCase();
+          const st = (o.status || '').toUpperCase();
+          const trk = o.tracking_number || 'UNASSIGNED';
+          const d = o.created_at ? new Date(o.created_at).toLocaleDateString('en-IN') : '—';
+          return [o.order_number, inv, `${cust}${email}`, amt, pay, st, trk, d];
+        });
+
+        this.exportService.exportTableToPdf({
+          filename: `Orders_Full_Export_${Date.now()}`,
+          title: 'Complete Customer Orders & Fulfillment Register',
+          subtitle: `Total Orders: ${orderList.length} | Master Database Records`,
+          headers,
+          rows,
+          orientation: 'l',
+        });
+      },
+      error: () => {
+        this.exporting.set(false);
+        alert('Failed to retrieve full orders list for export.');
+      },
+    });
+  }
+
+  exportAllExcel(): void {
+    this.exporting.set(true);
+    this.adminService.getOrders({ all: 'true' }, true).subscribe({
+      next: (res) => {
+        this.exporting.set(false);
+        const orderList = res.success ? (res.data || []) : this.orders();
+        const headers = [
+          'Order ID',
+          'Invoice Number',
+          'Customer Name',
+          'Customer Email',
+          'Phone',
+          'City',
+          'State',
+          'Subtotal (₹)',
+          'Total Amount (₹)',
+          'Payment Method',
+          'Payment Status',
+          'Fulfillment Status',
+          'Carrier Tracking',
+          'Placed Date',
+        ];
+        const rows = orderList.map((o) => {
+          const inv = (o as any).invoice_number || `INV-${(o.order_number || o.id).replace('ORD-', '')}`;
+          const ship = (o as any).shipping_address_json || {};
+          return [
+            o.order_number,
+            inv,
+            ship.recipient_name || o.guest_email || 'Patron',
+            o.guest_email || ship.email || '',
+            ship.phone || '',
+            ship.city || '',
+            ship.state || '',
+            Number((o as any).subtotal || o.total_amount || 0),
+            Number(o.total_amount || 0),
+            o.payment_method || 'credit_card',
+            o.payment_status || 'paid',
+            o.status || 'pending',
+            o.tracking_number || '',
+            o.created_at ? new Date(o.created_at).toISOString() : '',
+          ];
+        });
+
+        this.exportService.exportTableToExcel({
+          filename: `Orders_Full_Export_${Date.now()}`,
+          sheetName: 'All Orders',
+          title: 'Master Customer Orders Directory',
+          headers,
+          rows,
+        });
+      },
+      error: () => {
+        this.exporting.set(false);
+        alert('Failed to retrieve full orders list for export.');
+      },
+    });
+  }
+
+  async downloadInvoice(ord: Order): Promise<void> {
+    try {
+      await this.exportService.generateOrderInvoicePdf(ord);
+    } catch (err) {
+      console.error('Failed to download invoice:', err);
+      alert('Failed to generate PDF invoice. Please try again.');
     }
   }
 }

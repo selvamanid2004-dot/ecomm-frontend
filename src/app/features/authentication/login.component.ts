@@ -64,7 +64,15 @@ import { AuthService } from '../../core/services/auth.service';
     </div>
   `,
   styles: [`
-    .max-w-md { max-width: 440px; margin-left: auto; margin-right: auto; }
+    .auth-page {
+      min-height: calc(100vh - 4rem);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem 1rem;
+    }
+    .max-w-md { max-width: 440px; width: 100%; margin-left: auto; margin-right: auto; }
+    .auth-card { width: 100%; }
     .bg-subtle { background: var(--color-surface-subtle); }
     .btn-xs { padding: 0.35rem 0.5rem; font-size: 0.75rem; }
     .alert-box {
@@ -74,7 +82,6 @@ import { AuthService } from '../../core/services/auth.service';
       border-radius: var(--radius-sm);
     }
     .w-full { width: 100%; }
-    .py-5 { padding-top: 4rem; padding-bottom: 4rem; }
   `],
 })
 export class LoginComponent {

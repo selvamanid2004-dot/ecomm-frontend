@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AdminService } from '../../core/services/admin.service';
 import { ProductService } from '../../core/services/product.service';
+import { ExportService } from '../../core/services/export.service';
 import { Product, Category } from '../../core/models/ecommerce.models';
 
 @Component({
@@ -18,9 +19,17 @@ import { Product, Category } from '../../core/models/ecommerce.models';
           <h1 class="page-title text-2xl font-extrabold text-slate-900">Product Catalog</h1>
           <p class="text-xs text-muted mt-1">Manage published creations, review prices, update product media, and control active status.</p>
         </div>
-        <a routerLink="/admin/add-product" class="btn btn-brand btn-sm font-bold flex items-center gap-1.5 shadow-sm">
-          <span>+</span> Add New Product
-        </a>
+        <div class="header-actions flex items-center gap-2 flex-wrap">
+          <button (click)="exportPdf()" [disabled]="exporting()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export product catalog as PDF">
+            <span>📄</span> Export PDF
+          </button>
+          <button (click)="exportExcel()" [disabled]="exporting()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export product catalog as Excel">
+            <span>📊</span> Export Excel
+          </button>
+          <a routerLink="/admin/add-product" class="btn btn-brand btn-sm font-bold flex items-center gap-1.5 shadow-sm">
+            <span>+</span> Add New Product
+          </a>
+        </div>
       </div>
 
       <!-- Products Table Card -->
@@ -254,6 +263,7 @@ import { Product, Category } from '../../core/models/ecommerce.models';
 export class AdminProductsComponent implements OnInit {
   private adminService = inject(AdminService);
   private productService = inject(ProductService);
+  private exportService = inject(ExportService);
   private router = inject(Router);
 
   products = signal<Product[]>([]);
@@ -262,6 +272,7 @@ export class AdminProductsComponent implements OnInit {
   isEditing = signal(false);
   editingId: string | null = null;
   saving = signal(false);
+  exporting = signal(false);
 
   formData: any = {};
   imageInput = '';
@@ -379,5 +390,84 @@ export class AdminProductsComponent implements OnInit {
         error: (err) => alert(err.error?.message || 'Failed to delete product'),
       });
     }
+  }
+
+  exportPdf(): void {
+    this.exporting.set(true);
+    this.adminService.getProducts({ all: 'true' }, true).subscribe({
+      next: (res) => {
+        this.exporting.set(false);
+        const list = res.success ? (res.data || []) : this.products();
+        const headers = ['Product Creation', 'SKU', 'Category', 'Selling Price (₹)', 'Compare (₹)', 'Stock', 'Status'];
+        const rows = list.map((p) => [
+          p.name || 'Creation',
+          p.sku || 'SKU-BESPOKE',
+          p.category?.name || 'Exclusive',
+          `₹ ${Number(p.base_price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+          p.compare_at_price ? `₹ ${Number(p.compare_at_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '—',
+          `${p.stock_quantity || 0} units`,
+          p.is_active ? 'ACTIVE' : 'INACTIVE',
+        ]);
+
+        this.exportService.exportTableToPdf({
+          filename: `Products_Catalog_Export_${Date.now()}`,
+          title: 'Master Products & Creations Inventory Catalog',
+          subtitle: `Total Products: ${list.length} | Real-time Storefront Synchronization`,
+          headers,
+          rows,
+          orientation: 'l',
+        });
+      },
+      error: () => {
+        this.exporting.set(false);
+        alert('Failed to retrieve full product catalog for export.');
+      },
+    });
+  }
+
+  exportExcel(): void {
+    this.exporting.set(true);
+    this.adminService.getProducts({ all: 'true' }, true).subscribe({
+      next: (res) => {
+        this.exporting.set(false);
+        const list = res.success ? (res.data || []) : this.products();
+        const headers = [
+          'Product ID',
+          'Product Name',
+          'SKU',
+          'Category',
+          'Base Price (₹)',
+          'Compare Price (₹)',
+          'Stock Quantity',
+          'Low Stock Threshold',
+          'Is Active',
+          'Slug',
+        ];
+        const rows = list.map((p) => [
+          p.id || '',
+          p.name || 'Creation',
+          p.sku || '',
+          p.category?.name || '',
+          Number(p.base_price || 0),
+          p.compare_at_price ? Number(p.compare_at_price) : 0,
+          Number(p.stock_quantity || 0),
+          Number(p.low_stock_threshold || 5),
+          p.is_active ? 'ACTIVE' : 'INACTIVE',
+          p.slug || '',
+        ]);
+
+        this.exportService.exportTableToExcel({
+          filename: `Products_Catalog_Export_${Date.now()}`,
+          sheetName: 'Products Catalog',
+          title: 'Master Product Catalog & Pricing Register',
+          headers,
+          rows,
+        });
+      },
+      error: () => {
+        this.exporting.set(false);
+        alert('Failed to retrieve full product catalog for export.');
+      },
+    });
   }
 }

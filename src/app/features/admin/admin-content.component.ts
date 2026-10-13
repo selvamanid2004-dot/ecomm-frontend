@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { ExportService } from '../../core/services/export.service';
 
 export interface SiteContent {
   announcement_text: string;
@@ -30,7 +31,13 @@ export interface SiteContent {
           <p class="text-xs text-muted mt-1">Dynamically customize storefront headlines, announcements, and promotional copy without editing code.</p>
         </div>
 
-        <div class="header-actions flex gap-2">
+        <div class="header-actions flex items-center gap-2 flex-wrap">
+          <button (click)="exportPdf()" type="button" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export CMS configuration as PDF">
+            <span>📄</span> Export PDF
+          </button>
+          <button (click)="exportExcel()" type="button" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export CMS configuration as Excel">
+            <span>📊</span> Export Excel
+          </button>
           <button (click)="resetDefaults()" type="button" class="btn btn-secondary btn-sm font-bold">
             Reset Defaults
           </button>
@@ -265,6 +272,7 @@ export interface SiteContent {
 })
 export class AdminContentComponent implements OnInit {
   private http = inject(HttpClient);
+  private exportService = inject(ExportService);
   private contentUrl = `${environment.apiUrl}/content/storefront`;
   private adminContentUrl = `${environment.apiUrl}/admin/content/storefront`;
 
@@ -329,5 +337,56 @@ export class AdminContentComponent implements OnInit {
       footer_text: 'LUXE STUDIO BOUTIQUE • Direct Single Page Experience',
     };
     this.saveContent();
+  }
+
+  exportPdf(): void {
+    const c = this.content;
+    const headers = ['CMS Section', 'Configuration Field', 'Configured Value / Text Copy'];
+    const rows = [
+      ['Top Announcement Bar', 'Announcement Text', c.announcement_text || '—'],
+      ['Top Announcement Bar', 'Badge Label', c.announcement_badge || '—'],
+      ['Brand Identity', 'Store Brand Name', c.brand_name || '—'],
+      ['Brand Identity', 'Brand Tagline', c.brand_tag || '—'],
+      ['Hero Showcase', 'Hero Badge', c.hero_badge || '—'],
+      ['Hero Showcase', 'Hero Heading', c.hero_heading || '—'],
+      ['Hero Showcase', 'Hero Subheading', c.hero_subheading || '—'],
+      ['Creations Section', 'Section Title', c.products_section_title || '—'],
+      ['Creations Section', 'Section Subtitle', c.products_section_subtitle || '—'],
+      ['Footer & Legal Notice', 'Footer Legal Text', c.footer_text || '—'],
+    ];
+
+    this.exportService.exportTableToPdf({
+      filename: `Website_Content_Config_${Date.now()}`,
+      title: 'Storefront CMS & Website Content Configuration Report',
+      subtitle: 'Official live copy, promotional badges, and brand headlines',
+      headers,
+      rows,
+      orientation: 'l',
+    });
+  }
+
+  exportExcel(): void {
+    const c = this.content;
+    const headers = ['Section', 'Field Key', 'Description', 'Current Value'];
+    const rows: (string | number)[][] = [
+      ['Announcement', 'announcement_text', 'Top banner promotional copy', c.announcement_text || ''],
+      ['Announcement', 'announcement_badge', 'Badge highlight text', c.announcement_badge || ''],
+      ['Branding', 'brand_name', 'Primary boutique brand name', c.brand_name || ''],
+      ['Branding', 'brand_tag', 'Brand category tag', c.brand_tag || ''],
+      ['Hero', 'hero_badge', 'Curated collection badge', c.hero_badge || ''],
+      ['Hero', 'hero_heading', 'Main hero headline', c.hero_heading || ''],
+      ['Hero', 'hero_subheading', 'Hero narrative description', c.hero_subheading || ''],
+      ['Products Section', 'products_section_title', 'Creations section header', c.products_section_title || ''],
+      ['Products Section', 'products_section_subtitle', 'Creations section subtitle', c.products_section_subtitle || ''],
+      ['Footer', 'footer_text', 'Footer boutique notice & copyright', c.footer_text || ''],
+    ];
+
+    this.exportService.exportTableToExcel({
+      filename: `Website_Content_Config_${Date.now()}`,
+      sheetName: 'Content Settings',
+      title: 'Storefront CMS & Website Content Configuration',
+      headers,
+      rows,
+    });
   }
 }

@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService } from '../../core/services/admin.service';
+import { ExportService } from '../../core/services/export.service';
 
 @Component({
   selector: 'app-admin-customers',
@@ -16,16 +17,24 @@ import { AdminService } from '../../core/services/admin.service';
           <p class="text-xs text-muted mt-1">Review patron profiles, customer engagement, loyalty points, and lifetime spend history.</p>
         </div>
 
-        <div class="header-actions flex items-center gap-3">
+        <div class="header-actions flex items-center gap-2 flex-wrap">
           <div class="search-wrap">
             <input
               type="text"
               [(ngModel)]="searchQuery"
               (input)="onSearch()"
               placeholder="Search customer name or email..."
-              class="form-control text-xs w-72"
+              class="form-control text-xs w-64"
             />
           </div>
+
+          <button (click)="exportPdf()" [disabled]="exporting()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export customers directory as PDF">
+            <span>📄</span> Export PDF
+          </button>
+          <button (click)="exportExcel()" [disabled]="exporting()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export customers directory as Excel">
+            <span>📊</span> Export Excel
+          </button>
+
           <button (click)="fetchCustomers()" class="btn btn-secondary btn-sm" title="Refresh customers">
             <span>⟳</span> Refresh
           </button>
@@ -116,8 +125,10 @@ import { AdminService } from '../../core/services/admin.service';
 })
 export class AdminCustomersComponent implements OnInit {
   private adminService = inject(AdminService);
+  private exportService = inject(ExportService);
 
   customers = signal<any[]>([]);
+  exporting = signal(false);
   searchQuery = '';
 
   ngOnInit(): void {
@@ -132,6 +143,72 @@ export class AdminCustomersComponent implements OnInit {
 
   onSearch(): void {
     this.fetchCustomers();
+  }
+
+  exportPdf(): void {
+    this.exporting.set(true);
+    this.adminService.getCustomers({ all: 'true' }, true).subscribe({
+      next: (res) => {
+        this.exporting.set(false);
+        const list = res.success ? (res.data || []) : this.customers();
+        const headers = ['Customer Name', 'Email Address', 'Phone', 'Loyalty Tier', 'Total Orders', 'Lifetime Spend (₹)', 'Registration Date'];
+        const rows = list.map((c: any) => [
+          c.name || 'Customer',
+          c.email || '—',
+          c.phone || '—',
+          `${c.loyaltyPoints || 0} pts`,
+          String(c.totalOrders || 0),
+          `₹ ${Number(c.totalSpend || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+          c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-IN') : '—',
+        ]);
+
+        this.exportService.exportTableToPdf({
+          filename: `Customers_Directory_Export_${Date.now()}`,
+          title: 'Registered Customer Accounts & Engagement Report',
+          subtitle: `Total Registered Patrons: ${list.length} | Master Records`,
+          headers,
+          rows,
+          orientation: 'l',
+        });
+      },
+      error: () => {
+        this.exporting.set(false);
+        alert('Failed to retrieve full customer directory for export.');
+      },
+    });
+  }
+
+  exportExcel(): void {
+    this.exporting.set(true);
+    this.adminService.getCustomers({ all: 'true' }, true).subscribe({
+      next: (res) => {
+        this.exporting.set(false);
+        const list = res.success ? (res.data || []) : this.customers();
+        const headers = ['Customer ID', 'Full Name', 'Email Address', 'Phone Number', 'Loyalty Points', 'Total Orders', 'Lifetime Spend (₹)', 'Registration Date'];
+        const rows = list.map((c: any) => [
+          c.id || c.userId || '',
+          c.name || 'Customer',
+          c.email || '',
+          c.phone || '',
+          Number(c.loyaltyPoints || 0),
+          Number(c.totalOrders || 0),
+          Number(c.totalSpend || 0),
+          c.createdAt ? new Date(c.createdAt).toISOString() : '',
+        ]);
+
+        this.exportService.exportTableToExcel({
+          filename: `Customers_Directory_Export_${Date.now()}`,
+          sheetName: 'Customers',
+          title: 'Master Customer Directory & Spend Analysis',
+          headers,
+          rows,
+        });
+      },
+      error: () => {
+        this.exporting.set(false);
+        alert('Failed to retrieve full customer directory for export.');
+      },
+    });
   }
 
   deleteCustomer(c: any): void {
