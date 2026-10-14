@@ -534,14 +534,17 @@ export interface CustomerOrder {
                 <h3 class="form-section-title">2. Payment & Confirmation</h3>
 
                 <div class="payment-method-selector mb-3">
-                  <label class="payment-option" [class.selected]="checkoutForm.paymentMethod === 'card'">
+                  <label class="payment-option highlight" [class.selected]="checkoutForm.paymentMethod === 'razorpay'">
                     <input
                       type="radio"
                       [(ngModel)]="checkoutForm.paymentMethod"
                       name="paymentMethod"
-                      value="card"
+                      value="razorpay"
                     />
-                    <span>💳 Credit / Debit Card (Instant Mock)</span>
+                    <div class="payment-label-content">
+                      <span class="payment-title">⚡ Razorpay Secure Checkout (Recommended)</span>
+                      <span class="payment-sub">Instant UPI (GPay, PhonePe, Paytm), Cards & NetBanking</span>
+                    </div>
                   </label>
                   <label class="payment-option" [class.selected]="checkoutForm.paymentMethod === 'cod'">
                     <input
@@ -550,7 +553,22 @@ export interface CustomerOrder {
                       name="paymentMethod"
                       value="cod"
                     />
-                    <span>📦 Cash on Delivery / Concierge</span>
+                    <div class="payment-label-content">
+                      <span class="payment-title">📦 Cash on Delivery / Concierge</span>
+                      <span class="payment-sub">Pay upon physical delivery</span>
+                    </div>
+                  </label>
+                  <label class="payment-option" [class.selected]="checkoutForm.paymentMethod === 'card'">
+                    <input
+                      type="radio"
+                      [(ngModel)]="checkoutForm.paymentMethod"
+                      name="paymentMethod"
+                      value="card"
+                    />
+                    <div class="payment-label-content">
+                      <span class="payment-title">💳 Quick Demo Instant Card</span>
+                      <span class="payment-sub">Instant simulated card payment</span>
+                    </div>
                   </label>
                 </div>
 
@@ -1520,19 +1538,48 @@ export interface CustomerOrder {
     }
     .payment-option {
       display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.75rem;
-      background: rgba(2, 6, 23, 0.8);
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.85rem 1rem;
+      background: rgba(2, 6, 23, 0.85);
       border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 0.5rem;
-      margin-bottom: 0.5rem;
-      font-size: 0.8rem;
+      border-radius: 0.6rem;
+      margin-bottom: 0.6rem;
       cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .payment-option:hover {
+      border-color: rgba(245, 158, 11, 0.4);
+      background: rgba(245, 158, 11, 0.04);
     }
     .payment-option.selected {
       border-color: #f59e0b;
-      background: rgba(245, 158, 11, 0.08);
+      background: rgba(245, 158, 11, 0.1);
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.12);
+    }
+    .payment-option.highlight {
+      border-color: rgba(245, 158, 11, 0.4);
+    }
+    .payment-option input[type="radio"] {
+      margin-top: 0.2rem;
+      accent-color: #f59e0b;
+      cursor: pointer;
+    }
+    .payment-label-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+    .payment-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1.2;
+    }
+    .payment-sub {
+      font-size: 0.72rem;
+      color: #94a3b8;
+      line-height: 1.3;
     }
     .bg-subtle { background: rgba(2, 6, 23, 0.8); }
     .success-icon-badge {
@@ -1718,6 +1765,7 @@ export class SingleStoreComponent implements OnInit, OnDestroy {
   private apiUrl = `${environment.apiUrl}/products`;
   private orderUrl = `${environment.apiUrl}/orders`;
   private contentUrl = `${environment.apiUrl}/content/storefront`;
+  private paymentUrl = `${environment.apiUrl}/payments`;
 
   // Dynamic Storefront Content (CMS)
   siteContent = signal({
@@ -1774,7 +1822,7 @@ export class SingleStoreComponent implements OnInit, OnDestroy {
     city: 'San Francisco',
     state: 'CA',
     postalCode: '94107',
-    paymentMethod: 'card',
+    paymentMethod: 'razorpay',
   };
   isSubmittingOrder = signal(false);
   checkoutError = signal<string | null>(null);
@@ -2066,6 +2114,7 @@ export class SingleStoreComponent implements OnInit, OnDestroy {
     const recipient = (this.checkoutForm.recipientName || user?.first_name || 'Valued Customer').trim();
     const orderNumber = `ORD-2026-${Math.floor(10000 + Math.random() * 90000)}`;
     const totalAmount = this.cartSubtotal();
+    const isRazorpay = this.checkoutForm.paymentMethod === 'razorpay';
 
     const payload = {
       guest_email: guestEmail,
@@ -2075,10 +2124,10 @@ export class SingleStoreComponent implements OnInit, OnDestroy {
         city: (this.checkoutForm.city || 'San Francisco').trim(),
         state: (this.checkoutForm.state || 'CA').trim(),
         postal_code: (this.checkoutForm.postalCode || '94107').trim(),
-        country: 'United States',
-        phone: (this.checkoutForm.phone || user?.phone || '+1 555-0142').trim(),
+        country: 'India',
+        phone: (this.checkoutForm.phone || user?.phone || '+91 9876543210').trim(),
       },
-      payment_method: this.checkoutForm.paymentMethod === 'card' ? 'credit_card' : 'cash_on_delivery',
+      payment_method: isRazorpay ? 'razorpay' : (this.checkoutForm.paymentMethod === 'card' ? 'credit_card' : 'cash_on_delivery'),
       shipping_method: 'FedEx Express Worldwide Air',
       items: this.cartItems().map((it) => ({
         product_id: it.product.id,
@@ -2089,28 +2138,32 @@ export class SingleStoreComponent implements OnInit, OnDestroy {
 
     this.http.post<{ success: boolean; data: any }>(`${this.orderUrl}/checkout`, payload).subscribe({
       next: (res) => {
-        this.isSubmittingOrder.set(false);
-        this.isCheckoutOpen.set(false);
         const backendOrder = res.data;
         const finalNum = backendOrder?.order_number || orderNumber;
 
-        this.confirmedOrder.set({
-          orderNumber: finalNum,
-          recipientName: recipient,
-          email: guestEmail,
-          totalAmount: backendOrder?.total_amount || totalAmount,
-          fullOrder: backendOrder,
-        });
+        if (isRazorpay) {
+          // Initialize Razorpay Transaction Order via Backend
+          this.http
+            .post<{ success: boolean; data: any }>(`${this.paymentUrl}/razorpay/order`, {
+              orderId: backendOrder.id,
+              receipt: finalNum,
+            })
+            .subscribe({
+              next: (rzpRes) => {
+                this.launchRazorpayCheckout(rzpRes.data, backendOrder, recipient, guestEmail);
+              },
+              error: (err) => {
+                this.isSubmittingOrder.set(false);
+                this.checkoutError.set(
+                  err.error?.message || 'Could not initiate Razorpay transaction. Please try again.'
+                );
+              },
+            });
+          return;
+        }
 
-        // Store into local cache and state immediately
-        const existingList = this.getCustomerOrdersFromCache(guestEmail);
-        const updatedList = [backendOrder, ...existingList.filter((o) => o.order_number !== finalNum)];
-        this.saveCustomerOrdersToCache(guestEmail, updatedList);
-        this.customerOrders.set(updatedList);
-
-        this.cartItems.set([]);
-        this.saveActiveCart();
-        this.fetchCustomerOrders(false);
+        // Standard flow for COD or Instant demo card
+        this.finalizeOrderSuccess(backendOrder, finalNum, recipient, guestEmail, totalAmount);
       },
       error: (err) => {
         this.isSubmittingOrder.set(false);
@@ -2121,6 +2174,122 @@ export class SingleStoreComponent implements OnInit, OnDestroy {
         this.checkoutError.set(detail);
       },
     });
+  }
+
+  private launchRazorpayCheckout(
+    rzpData: any,
+    backendOrder: any,
+    recipient: string,
+    guestEmail: string
+  ): void {
+    const launch = () => {
+      try {
+        const options = {
+          key: rzpData.key_id,
+          amount: rzpData.amount, // in paise
+          currency: rzpData.currency || 'INR',
+          name: this.siteContent().brand_name || 'LUXE STUDIO',
+          description: `Bespoke Order #${backendOrder.order_number}`,
+          image: 'https://images.unsplash.com/photo-1546435770-a3e426bf472b?auto=format&fit=crop&w=200&q=80',
+          order_id: rzpData.razorpay_order_id,
+          handler: (response: any) => {
+            // Cryptographic Verification on Backend
+            this.http
+              .post<{ success: boolean; data: any }>(`${this.paymentUrl}/razorpay/verify`, {
+                orderId: backendOrder.id,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature,
+              })
+              .subscribe({
+                next: (verifyRes) => {
+                  const confirmedOrder = verifyRes.data || backendOrder;
+                  this.showToast('Payment verified successfully via Razorpay!');
+                  this.finalizeOrderSuccess(
+                    confirmedOrder,
+                    confirmedOrder.order_number,
+                    recipient,
+                    guestEmail,
+                    confirmedOrder.total_amount
+                  );
+                },
+                error: (err) => {
+                  this.isSubmittingOrder.set(false);
+                  this.checkoutError.set(
+                    err.error?.message || 'Payment verification failed. Please contact boutique support.'
+                  );
+                },
+              });
+          },
+          prefill: {
+            name: recipient,
+            email: guestEmail,
+            contact: this.checkoutForm.phone || '+919876543210',
+          },
+          notes: {
+            order_number: backendOrder.order_number,
+            invoice_number: backendOrder.invoice_number,
+          },
+          theme: {
+            color: '#d97706', // Luxury Amber / Gold accent
+          },
+          modal: {
+            ondismiss: () => {
+              this.isSubmittingOrder.set(false);
+              this.showToast(`Razorpay window closed. Order #${backendOrder.order_number} is saved in pending.`);
+            },
+          },
+        };
+
+        const rzpInstance = new (window as any).Razorpay(options);
+        rzpInstance.open();
+      } catch (err) {
+        console.error('Failed to open Razorpay modal:', err);
+        this.isSubmittingOrder.set(false);
+        this.checkoutError.set('Could not open payment window. Please check your browser popup settings.');
+      }
+    };
+
+    if (typeof window !== 'undefined' && (window as any).Razorpay) {
+      launch();
+    } else {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => launch();
+      script.onerror = () => {
+        this.isSubmittingOrder.set(false);
+        this.checkoutError.set('Unable to load Razorpay payment gateway script. Please verify internet connection.');
+      };
+      document.body.appendChild(script);
+    }
+  }
+
+  private finalizeOrderSuccess(
+    backendOrder: any,
+    finalNum: string,
+    recipient: string,
+    guestEmail: string,
+    totalAmount: number
+  ): void {
+    this.isSubmittingOrder.set(false);
+    this.isCheckoutOpen.set(false);
+
+    this.confirmedOrder.set({
+      orderNumber: finalNum,
+      recipientName: recipient,
+      email: guestEmail,
+      totalAmount: backendOrder?.total_amount || totalAmount,
+      fullOrder: backendOrder,
+    });
+
+    const existingList = this.getCustomerOrdersFromCache(guestEmail);
+    const updatedList = [backendOrder, ...existingList.filter((o) => o.order_number !== finalNum)];
+    this.saveCustomerOrdersToCache(guestEmail, updatedList);
+    this.customerOrders.set(updatedList);
+
+    this.cartItems.set([]);
+    this.saveActiveCart();
+    this.fetchCustomerOrders(false);
   }
 
   async downloadConfirmationBill(): Promise<void> {
