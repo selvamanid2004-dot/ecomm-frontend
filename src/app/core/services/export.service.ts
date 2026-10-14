@@ -1,8 +1,4 @@
 import { Injectable } from '@angular/core';
-import { jsPDF } from 'jspdf';
-import { autoTable } from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
-import html2canvas from 'html2canvas';
 
 export interface CompanyInfo {
   name: string;
@@ -288,6 +284,11 @@ export class ExportService {
     document.body.appendChild(printContainer);
 
     try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
+
       const canvas = await html2canvas(printContainer, {
         scale: 2, // High resolution (300 DPI equivalent)
         useCORS: true,
@@ -343,6 +344,10 @@ export class ExportService {
     rows: (string | number)[][];
     orientation?: 'p' | 'l';
   }): Promise<void> {
+    const [{ jsPDF }, { autoTable }] = await Promise.all([
+      import('jspdf'),
+      import('jspdf-autotable'),
+    ]);
     const orientation = options.orientation || 'p';
     const doc = new jsPDF(orientation, 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -459,14 +464,15 @@ export class ExportService {
    * Generates and downloads a genuine Microsoft Excel (.xlsx) spreadsheet with
    * formatted column headers, properly aligned data cells, and metadata.
    */
-  exportTableToExcel(options: {
+  async exportTableToExcel(options: {
     filename: string;
     sheetName: string;
     title: string;
     headers: string[];
     rows: (string | number)[][];
     columnWidths?: number[];
-  }): void {
+  }): Promise<void> {
+    const XLSX = await import('xlsx');
     const wb = XLSX.utils.book_new();
 
     // Sheet data starting with Title and Metadata

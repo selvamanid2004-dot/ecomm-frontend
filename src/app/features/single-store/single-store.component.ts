@@ -1788,15 +1788,45 @@ export class SingleStoreComponent implements OnInit, OnDestroy {
     fullOrder?: any;
   } | null>(null);
 
-  ngOnInit(): void {
-    this.fetchSiteContent();
-    this.fetchProducts();
+  private readonly CACHED_PRODUCTS_KEY = 'luxe_cached_store_products';
+  private readonly CACHED_CONTENT_KEY = 'luxe_cached_store_content';
 
-    // Load active customer cart and orders if logged in
+  ngOnInit(): void {
+    // 1. Instant Render from Local Cache (0ms perceived load on reopen)
+    this.hydrateFromLocalCache();
+
+    // 2. Background Revalidation from Network (Stale-While-Revalidate)
+    this.fetchSiteContent();
+    this.fetchProducts(this.products().length > 0);
+
+    // 3. Load active customer cart and orders if logged in
     this.loadCartForActiveUser();
     if (this.authService.currentCustomer()) {
       this.syncUserToCheckout();
       this.fetchCustomerOrders();
+    }
+  }
+
+  private hydrateFromLocalCache(): void {
+    try {
+      const cachedContent = localStorage.getItem(this.CACHED_CONTENT_KEY);
+      if (cachedContent) {
+        const parsed = JSON.parse(cachedContent);
+        if (parsed && typeof parsed === 'object') {
+          this.siteContent.set({ ...this.siteContent(), ...parsed });
+        }
+      }
+
+      const cachedProducts = localStorage.getItem(this.CACHED_PRODUCTS_KEY);
+      if (cachedProducts) {
+        const parsed = JSON.parse(cachedProducts);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          this.products.set(parsed);
+          this.loading.set(false);
+        }
+      }
+    } catch (e) {
+      // Local storage unreadable or corrupt, continue with network fetch
     }
   }
 
@@ -1812,6 +1842,9 @@ export class SingleStoreComponent implements OnInit, OnDestroy {
       next: (res) => {
         if (res.data) {
           this.siteContent.set({ ...this.siteContent(), ...res.data });
+          try {
+            localStorage.setItem(this.CACHED_CONTENT_KEY, JSON.stringify(res.data));
+          } catch {}
         }
       },
       error: () => {},
@@ -1863,17 +1896,31 @@ export class SingleStoreComponent implements OnInit, OnDestroy {
     this.cartItems.set([]);
   }
 
-  fetchProducts(): void {
-    this.loading.set(true);
+  fetchProducts(isBackground = false): void {
+    if (!isBackground) {
+      this.loading.set(true);
+    }
+
     this.http.get<{ success: boolean; data: any }>(this.apiUrl).subscribe({
       next: (res) => {
         const rawList = Array.isArray(res.data) ? res.data : (res.data?.products || []);
+        const existingProducts = this.products();
+        const existingQtyMap = new Map<string, number>();
+        for (const ep of existingProducts) {
+          if (ep.selectedQty > 0) existingQtyMap.set(ep.id, ep.selectedQty);
+        }
+
         const list: StoreProduct[] = rawList.map((p: any) => ({
           ...p,
-          selectedQty: 0,
+          selectedQty: existingQtyMap.get(p.id) || 0,
         }));
+
         this.products.set(list);
         this.loading.set(false);
+
+        try {
+          localStorage.setItem(this.CACHED_PRODUCTS_KEY, JSON.stringify(list));
+        } catch {}
       },
       error: (err) => {
         console.error('Failed to load products from API:', err);

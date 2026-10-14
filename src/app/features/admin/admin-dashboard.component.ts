@@ -272,14 +272,28 @@ export class AdminDashboardComponent implements OnInit {
   refreshing = signal<boolean>(false);
 
   ngOnInit(): void {
+    try {
+      const cached = sessionStorage.getItem('luxe_admin_cached_metrics');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed) this.metrics.set(parsed);
+      }
+    } catch {}
     this.refresh(false);
   }
 
   refresh(force = true): void {
-    this.refreshing.set(true);
+    if (!this.metrics()) {
+      this.refreshing.set(true);
+    }
     this.adminService.getMetrics(force).subscribe({
       next: (res) => {
-        if (res.success) this.metrics.set(res.data);
+        if (res.success) {
+          this.metrics.set(res.data);
+          try {
+            sessionStorage.setItem('luxe_admin_cached_metrics', JSON.stringify(res.data));
+          } catch {}
+        }
         this.refreshing.set(false);
       },
       error: () => this.refreshing.set(false),

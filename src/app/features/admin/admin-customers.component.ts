@@ -193,12 +193,26 @@ export class AdminCustomersComponent implements OnInit {
   searchQuery = '';
 
   ngOnInit(): void {
+    try {
+      const cached = sessionStorage.getItem('luxe_admin_cached_customers');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) this.customers.set(parsed);
+      }
+    } catch {}
     this.fetchCustomers();
   }
 
   fetchCustomers(): void {
     this.adminService.getCustomers({ search: this.searchQuery || undefined }).subscribe((res) => {
-      if (res.success) this.customers.set(res.data);
+      if (res.success) {
+        this.customers.set(res.data);
+        if (!this.searchQuery) {
+          try {
+            sessionStorage.setItem('luxe_admin_cached_customers', JSON.stringify(res.data));
+          } catch {}
+        }
+      }
     });
   }
 

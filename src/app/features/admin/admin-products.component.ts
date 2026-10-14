@@ -350,9 +350,31 @@ export class AdminProductsComponent implements OnInit {
   modalFile: File | null = null;
 
   ngOnInit(): void {
+    try {
+      const cached = sessionStorage.getItem('luxe_admin_cached_products');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          this.allProductsMaster.set(parsed);
+          this.filterProducts();
+        }
+      }
+      const cachedCats = sessionStorage.getItem('luxe_admin_cached_cats');
+      if (cachedCats) {
+        const parsedCats = JSON.parse(cachedCats);
+        if (Array.isArray(parsedCats) && parsedCats.length > 0) {
+          this.categories.set(parsedCats);
+        }
+      }
+    } catch {}
     this.fetchData();
     this.productService.getCategories().subscribe((res) => {
-      if (res.success) this.categories.set(res.data);
+      if (res.success) {
+        this.categories.set(res.data);
+        try {
+          sessionStorage.setItem('luxe_admin_cached_cats', JSON.stringify(res.data));
+        } catch {}
+      }
     });
   }
 
@@ -364,6 +386,9 @@ export class AdminProductsComponent implements OnInit {
     this.adminService.getProducts({ all: 'true' }, true).subscribe((res) => {
       if (res.success) {
         this.allProductsMaster.set(res.data);
+        try {
+          sessionStorage.setItem('luxe_admin_cached_products', JSON.stringify(res.data));
+        } catch {}
         this.filterProducts();
       }
     });

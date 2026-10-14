@@ -296,6 +296,13 @@ export class AdminContentComponent implements OnInit {
   successMessage = signal<string | null>(null);
 
   ngOnInit(): void {
+    try {
+      const cached = sessionStorage.getItem('luxe_admin_cached_cms');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed) this.content = { ...this.content, ...parsed };
+      }
+    } catch {}
     this.fetchContent();
   }
 
@@ -304,6 +311,9 @@ export class AdminContentComponent implements OnInit {
       next: (res) => {
         if (res.data) {
           this.content = { ...this.content, ...res.data };
+          try {
+            sessionStorage.setItem('luxe_admin_cached_cms', JSON.stringify(res.data));
+          } catch {}
         }
       },
     });

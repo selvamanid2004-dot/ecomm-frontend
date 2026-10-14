@@ -984,7 +984,14 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
-    this.fetchOrders();
+    try {
+      const cached = sessionStorage.getItem('luxe_admin_cached_orders');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) this.orders.set(parsed);
+      }
+    } catch {}
+    this.fetchOrders(this.orders().length === 0);
     // Smart auto-poll: only when browser tab is active/visible
     this.refreshInterval = setInterval(() => {
       if (typeof document !== 'undefined' && !document.hidden) {
@@ -1006,7 +1013,13 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     // Fetch all orders without server filter so KPI counts remain accurate
     this.adminService.getOrders({ limit: 100 }, forceRefresh).subscribe({
       next: (res) => {
-        if (res.success) this.orders.set(res.data || []);
+        if (res.success) {
+          const ords = res.data || [];
+          this.orders.set(ords);
+          try {
+            sessionStorage.setItem('luxe_admin_cached_orders', JSON.stringify(ords));
+          } catch {}
+        }
         this.loading.set(false);
       },
       error: () => {
