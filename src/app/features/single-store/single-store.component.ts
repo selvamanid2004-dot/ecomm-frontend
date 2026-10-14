@@ -757,7 +757,7 @@ export interface CustomerOrder {
                 <!-- Official Invoice & Bill Download Action -->
                 <div class="flex-between pt-3 mt-3 border-t text-xs" style="border-color: rgba(255,255,255,0.08);">
                   <span class="text-muted">
-                    Tax Invoice: <strong class="font-mono text-gold">{{ order.invoice_number || ('INV-' + (order.order_number?.replace('ORD-', '') || order.id)) }}</strong>
+                    Tax Invoice: <strong class="font-mono text-gold">{{ order.invoice_number || ('INV-' + (order.order_number.replace('ORD-', '') || order.id)) }}</strong>
                   </span>
                   <button
                     (click)="downloadOrderBill(order)"
