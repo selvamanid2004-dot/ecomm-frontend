@@ -20,10 +20,23 @@ import { Product, Category } from '../../core/models/ecommerce.models';
           <p class="text-xs text-muted mt-1">Manage published creations, review prices, update product media, and control active status.</p>
         </div>
         <div class="header-actions flex items-center gap-2 flex-wrap">
-          <button (click)="exportPdf()" [disabled]="exporting()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export product catalog as PDF">
+          <div class="search-wrap">
+            <input
+              type="text"
+              [(ngModel)]="searchQuery"
+              (input)="onSearch()"
+              placeholder="Search product name or SKU..."
+              class="form-control text-xs w-60"
+            />
+          </div>
+
+          <button (click)="initiateExport('pdf')" [disabled]="exporting()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export product catalog as PDF">
             <span>📄</span> Export PDF
           </button>
-          <button (click)="exportExcel()" [disabled]="exporting()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export product catalog as Excel">
+          <button (click)="initiateExport('csv')" [disabled]="exporting()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export product catalog as CSV">
+            <span>📑</span> Export CSV
+          </button>
+          <button (click)="initiateExport('excel')" [disabled]="exporting()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export product catalog as Excel">
             <span>📊</span> Export Excel
           </button>
           <a routerLink="/admin/add-product" class="btn btn-brand btn-sm font-bold flex items-center gap-1.5 shadow-sm">
@@ -225,6 +238,59 @@ import { Product, Category } from '../../core/models/ecommerce.models';
               </button>
             </div>
           </form>
+      <!-- Export Scope Selection Modal -->
+      <div class="modal-backdrop" *ngIf="exportModalOpen()" (click)="exportModalOpen.set(false)">
+        <div class="modal-dialog max-w-md p-0 overflow-hidden" (click)="$event.stopPropagation()">
+          <div class="p-5 border-b flex-between bg-slate-50">
+            <div>
+              <h2 class="text-base font-extrabold text-slate-900">Export Product Catalog</h2>
+              <span class="text-xs text-muted mt-0.5 block">Format: {{ exportTargetFormat().toUpperCase() }}</span>
+            </div>
+            <button (click)="exportModalOpen.set(false)" class="modal-close-btn">&times;</button>
+          </div>
+
+          <div class="p-5">
+            <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg mb-4 text-xs text-amber-900">
+              <strong>Active Filter Applied:</strong>
+              <div class="mt-1">Search: "<span class="font-bold">{{ searchQuery }}</span>"</div>
+            </div>
+
+            <p class="text-xs text-slate-600 mb-4">
+              Choose whether to export only the creations matching your search query or all catalog products:
+            </p>
+
+            <div class="flex flex-col gap-2.5">
+              <button
+                type="button"
+                (click)="confirmExport('filtered')"
+                class="btn btn-secondary text-xs font-bold py-3 px-4 flex items-center justify-between text-left"
+              >
+                <div>
+                  <div class="text-slate-900 font-extrabold">Export Filtered Results</div>
+                  <div class="text-[11px] text-muted">Creations matching "{{ searchQuery }}"</div>
+                </div>
+                <span class="badge badge-amber text-xs font-bold">{{ products().length }} Products</span>
+              </button>
+
+              <button
+                type="button"
+                (click)="confirmExport('all')"
+                class="btn btn-primary text-xs font-bold py-3 px-4 flex items-center justify-between text-left"
+              >
+                <div>
+                  <div class="text-white font-extrabold">Export All Catalog Products</div>
+                  <div class="text-slate-300 text-[11px]">Complete master product database</div>
+                </div>
+                <span class="badge badge-slate text-xs font-bold">{{ allProductsMaster().length || products().length }} Products</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="p-4 bg-slate-50 border-t flex justify-end">
+            <button type="button" (click)="exportModalOpen.set(false)" class="btn btn-secondary btn-sm font-bold">
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -267,12 +333,16 @@ export class AdminProductsComponent implements OnInit {
   private router = inject(Router);
 
   products = signal<Product[]>([]);
+  allProductsMaster = signal<Product[]>([]);
   categories = signal<Category[]>([]);
   modalOpen = signal(false);
+  exportModalOpen = signal(false);
+  exportTargetFormat = signal<'pdf' | 'csv' | 'excel'>('pdf');
   isEditing = signal(false);
   editingId: string | null = null;
   saving = signal(false);
   exporting = signal(false);
+  searchQuery = '';
 
   formData: any = {};
   imageInput = '';
@@ -291,9 +361,32 @@ export class AdminProductsComponent implements OnInit {
   }
 
   fetchData(): void {
-    this.adminService.getProducts({ limit: 50 }).subscribe((res) => {
-      if (res.success) this.products.set(res.data);
+    this.adminService.getProducts({ all: 'true' }, true).subscribe((res) => {
+      if (res.success) {
+        this.allProductsMaster.set(res.data);
+        this.filterProducts();
+      }
     });
+  }
+
+  onSearch(): void {
+    this.filterProducts();
+  }
+
+  private filterProducts(): void {
+    const q = this.searchQuery.trim().toLowerCase();
+    if (!q) {
+      this.products.set(this.allProductsMaster());
+      return;
+    }
+    const filtered = this.allProductsMaster().filter((p) => {
+      const name = (p.name || '').toLowerCase();
+      const sku = (p.sku || '').toLowerCase();
+      const desc = (p.description || '').toLowerCase();
+      const cat = (p.category?.name || '').toLowerCase();
+      return name.includes(q) || sku.includes(q) || desc.includes(q) || cat.includes(q);
+    });
+    this.products.set(filtered);
   }
 
   stepPrice(delta: number): void {
@@ -392,82 +485,157 @@ export class AdminProductsComponent implements OnInit {
     }
   }
 
-  exportPdf(): void {
+  initiateExport(format: 'pdf' | 'csv' | 'excel'): void {
+    if (this.searchQuery && this.searchQuery.trim()) {
+      this.exportTargetFormat.set(format);
+      this.exportModalOpen.set(true);
+    } else {
+      this.executeProductsExport(format, 'all');
+    }
+  }
+
+  confirmExport(scope: 'filtered' | 'all'): void {
+    const fmt = this.exportTargetFormat();
+    this.exportModalOpen.set(false);
+    this.executeProductsExport(fmt, scope);
+  }
+
+  executeProductsExport(format: 'pdf' | 'csv' | 'excel', scope: 'filtered' | 'all'): void {
     this.exporting.set(true);
-    this.adminService.getProducts({ all: 'true' }, true).subscribe({
-      next: (res) => {
-        this.exporting.set(false);
-        const list = res.success ? (res.data || []) : this.products();
-        const headers = ['Product Creation', 'SKU', 'Category', 'Selling Price (₹)', 'Compare (₹)', 'Stock', 'Status'];
-        const rows = list.map((p) => [
+    const list = scope === 'filtered' ? this.products() : this.allProductsMaster();
+    if (list.length === 0) {
+      this.exporting.set(false);
+      alert('No products available for export.');
+      return;
+    }
+
+    const timestamp = Date.now();
+    const scopeLabel = scope === 'filtered' ? 'Filtered' : 'Full';
+
+    if (format === 'pdf') {
+      const headers = [
+        'Product Creation',
+        'Description',
+        'SKU',
+        'Category',
+        'Selling Price (₹)',
+        'Compare (₹)',
+        'Stock',
+        'Stock Status',
+        'Status',
+      ];
+      const rows = list.map((p) => {
+        const rawDesc = (p.description || 'Exclusive luxury item').replace(/\s+/g, ' ').trim();
+        const shortDesc = rawDesc.length > 55 ? `${rawDesc.substring(0, 52)}...` : rawDesc;
+        const price = `₹ ${Number(p.base_price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+        const compare = p.compare_at_price
+          ? `₹ ${Number(p.compare_at_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+          : '—';
+        const stockStatus = p.stock_quantity <= (p.low_stock_threshold || 5) ? 'LOW STOCK' : 'IN STOCK';
+        return [
           p.name || 'Creation',
+          shortDesc,
           p.sku || 'SKU-BESPOKE',
           p.category?.name || 'Exclusive',
-          `₹ ${Number(p.base_price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
-          p.compare_at_price ? `₹ ${Number(p.compare_at_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '—',
+          price,
+          compare,
           `${p.stock_quantity || 0} units`,
+          stockStatus,
           p.is_active ? 'ACTIVE' : 'INACTIVE',
-        ]);
+        ];
+      });
 
-        this.exportService.exportTableToPdf({
-          filename: `Products_Catalog_Export_${Date.now()}`,
-          title: 'Master Products & Creations Inventory Catalog',
-          subtitle: `Total Products: ${list.length} | Real-time Storefront Synchronization`,
-          headers,
-          rows,
-          orientation: 'l',
-        });
-      },
-      error: () => {
-        this.exporting.set(false);
-        alert('Failed to retrieve full product catalog for export.');
-      },
-    });
+      this.exportService.exportTableToPdf({
+        filename: `Products_${scopeLabel}_Export_${timestamp}`,
+        title: `Products & Creations Inventory Catalog (${scopeLabel})`,
+        subtitle: `Total Products: ${list.length} | Generated: ${new Date().toLocaleString('en-IN')}`,
+        headers,
+        rows,
+        orientation: 'l',
+      });
+      this.exporting.set(false);
+    } else if (format === 'csv') {
+      const headers = [
+        'Product ID',
+        'Product Name',
+        'Product Description',
+        'SKU',
+        'Category',
+        'Selling Price (₹)',
+        'Compare Price (₹)',
+        'Stock Quantity',
+        'Stock Status',
+        'Low Stock Threshold',
+        'Active Status',
+        'Storefront Slug',
+      ];
+      const rows = list.map((p) => [
+        p.id || '',
+        p.name || 'Creation',
+        p.description || '',
+        p.sku || '',
+        p.category?.name || '',
+        `₹ ${Number(p.base_price || 0).toFixed(2)}`,
+        p.compare_at_price ? `₹ ${Number(p.compare_at_price).toFixed(2)}` : '',
+        Number(p.stock_quantity || 0),
+        p.stock_quantity <= (p.low_stock_threshold || 5) ? 'Low Stock' : 'In Stock',
+        Number(p.low_stock_threshold || 5),
+        p.is_active ? 'ACTIVE' : 'INACTIVE',
+        p.slug || '',
+      ]);
+
+      this.exportService.exportTableToCsv({
+        filename: `Products_${scopeLabel}_Export_${timestamp}`,
+        headers,
+        rows,
+      });
+      this.exporting.set(false);
+    } else if (format === 'excel') {
+      const headers = [
+        'Product ID',
+        'Product Name',
+        'Product Description',
+        'SKU',
+        'Category',
+        'Selling Price (₹)',
+        'Compare Price (₹)',
+        'Stock Quantity',
+        'Stock Status',
+        'Low Stock Threshold',
+        'Is Active',
+        'Slug',
+      ];
+      const rows = list.map((p) => [
+        p.id || '',
+        p.name || 'Creation',
+        p.description || '',
+        p.sku || '',
+        p.category?.name || '',
+        Number(p.base_price || 0),
+        p.compare_at_price ? Number(p.compare_at_price) : 0,
+        Number(p.stock_quantity || 0),
+        p.stock_quantity <= (p.low_stock_threshold || 5) ? 'Low Stock' : 'In Stock',
+        Number(p.low_stock_threshold || 5),
+        p.is_active ? 'ACTIVE' : 'INACTIVE',
+        p.slug || '',
+      ]);
+
+      this.exportService.exportTableToExcel({
+        filename: `Products_${scopeLabel}_Export_${timestamp}`,
+        sheetName: 'Products Catalog',
+        title: `Master Products Catalog & Pricing Register (${scopeLabel})`,
+        headers,
+        rows,
+      });
+      this.exporting.set(false);
+    }
+  }
+
+  exportPdf(): void {
+    this.initiateExport('pdf');
   }
 
   exportExcel(): void {
-    this.exporting.set(true);
-    this.adminService.getProducts({ all: 'true' }, true).subscribe({
-      next: (res) => {
-        this.exporting.set(false);
-        const list = res.success ? (res.data || []) : this.products();
-        const headers = [
-          'Product ID',
-          'Product Name',
-          'SKU',
-          'Category',
-          'Base Price (₹)',
-          'Compare Price (₹)',
-          'Stock Quantity',
-          'Low Stock Threshold',
-          'Is Active',
-          'Slug',
-        ];
-        const rows = list.map((p) => [
-          p.id || '',
-          p.name || 'Creation',
-          p.sku || '',
-          p.category?.name || '',
-          Number(p.base_price || 0),
-          p.compare_at_price ? Number(p.compare_at_price) : 0,
-          Number(p.stock_quantity || 0),
-          Number(p.low_stock_threshold || 5),
-          p.is_active ? 'ACTIVE' : 'INACTIVE',
-          p.slug || '',
-        ]);
-
-        this.exportService.exportTableToExcel({
-          filename: `Products_Catalog_Export_${Date.now()}`,
-          sheetName: 'Products Catalog',
-          title: 'Master Product Catalog & Pricing Register',
-          headers,
-          rows,
-        });
-      },
-      error: () => {
-        this.exporting.set(false);
-        alert('Failed to retrieve full product catalog for export.');
-      },
-    });
+    this.initiateExport('excel');
   }
 }

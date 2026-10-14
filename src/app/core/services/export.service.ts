@@ -310,21 +310,66 @@ export class ExportService {
     }
   }
 
+  private fontBase64Cache: string | null = null;
+
+  private async getFontBase64(): Promise<string | null> {
+    if (this.fontBase64Cache) return this.fontBase64Cache;
+    try {
+      if (typeof window === 'undefined' || typeof fetch === 'undefined') return null;
+      const res = await fetch('/fonts/luxe-font.ttf');
+      if (!res.ok) return null;
+      const buffer = await res.arrayBuffer();
+      let binary = '';
+      const bytes = new Uint8Array(buffer);
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      this.fontBase64Cache = btoa(binary);
+      return this.fontBase64Cache;
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * Generates and downloads a multi-page tabular PDF export with professional margins,
    * clear headings, Indian Rupee formatting, and automatic page numbers.
    */
-  exportTableToPdf(options: {
+  async exportTableToPdf(options: {
     filename: string;
     title: string;
     subtitle?: string;
     headers: string[];
     rows: (string | number)[][];
     orientation?: 'p' | 'l';
-  }): void {
+  }): Promise<void> {
     const orientation = options.orientation || 'p';
     const doc = new jsPDF(orientation, 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
+
+    const font = await this.getFontBase64();
+    let activeFont = 'helvetica';
+    if (font) {
+      try {
+        doc.addFileToVFS('luxe-font.ttf', font);
+        doc.addFont('luxe-font.ttf', 'LuxeFont', 'normal');
+        doc.setFont('LuxeFont');
+        activeFont = 'LuxeFont';
+      } catch {
+        activeFont = 'helvetica';
+      }
+    }
+
+    const sanitizeVal = (val: string | number): string | number => {
+      if (typeof val !== 'string') return val;
+      if (activeFont === 'helvetica') {
+        return val.replace(/₹/g, 'Rs.');
+      }
+      return val;
+    };
+
+    const headers = options.headers.map(sanitizeVal) as string[];
+    const rows = options.rows.map((row) => row.map(sanitizeVal));
 
     // Top Header Banner
     doc.setFillColor(15, 23, 42); // #0f172a
@@ -333,21 +378,27 @@ export class ExportService {
     // Brand & Title
     doc.setTextColor(217, 119, 6); // #d97706 (Gold)
     doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
+    if (activeFont === 'helvetica') {
+      doc.setFont('helvetica', 'bold');
+    }
     doc.text('LUXE STUDIO', 14, 12);
 
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
+    if (activeFont === 'helvetica') {
+      doc.setFont('helvetica', 'bold');
+    }
     doc.text(options.title.toUpperCase(), 14, 20);
 
     // Meta / Date Stamp on Right
     doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
+    if (activeFont === 'helvetica') {
+      doc.setFont('helvetica', 'normal');
+    }
     doc.setTextColor(203, 213, 225); // #cbd5e1
     const dateStr = `Exported: ${new Date().toLocaleString('en-IN')}`;
     doc.text(dateStr, pageWidth - 14, 12, { align: 'right' });
-    doc.text(`Total Records: ${options.rows.length}`, pageWidth - 14, 20, { align: 'right' });
+    doc.text(`Total Records: ${rows.length}`, pageWidth - 14, 20, { align: 'right' });
 
     // Optional Subtitle
     let startY = 34;
@@ -361,18 +412,20 @@ export class ExportService {
     // AutoTable
     autoTable(doc, {
       startY,
-      head: [options.headers],
-      body: options.rows,
+      head: [headers],
+      body: rows,
       theme: 'striped',
       headStyles: {
         fillColor: [15, 23, 42],
         textColor: [255, 255, 255],
-        fontStyle: 'bold',
+        font: activeFont,
+        fontStyle: activeFont === 'helvetica' ? 'bold' : 'normal',
         fontSize: 8.5,
         cellPadding: 3.5,
       },
       styles: {
-        font: 'helvetica',
+        font: activeFont,
+        fontStyle: 'normal',
         fontSize: 8,
         cellPadding: 3,
         overflow: 'linebreak',
@@ -391,7 +444,7 @@ export class ExportService {
         doc.setFontSize(8);
         doc.setTextColor(148, 163, 184);
         doc.text(
-          `Page ${currentPage} of ${pageCount} • Official Record Export &copy; Luxe Studio Boutique`,
+          `Page ${currentPage} of ${pageCount} • Official Record Export © Luxe Studio Boutique`,
           pageWidth / 2,
           pageHeight - 10,
           { align: 'center' }
@@ -443,5 +496,49 @@ export class ExportService {
 
     XLSX.utils.book_append_sheet(wb, ws, options.sheetName || 'Report');
     XLSX.writeFile(wb, `${options.filename}.xlsx`);
+  }
+
+  /**
+   * Generates and downloads a properly structured CSV file with UTF-8 BOM (\uFEFF)
+   * to ensure correct display of Indian Rupees (₹), special characters, and numbers
+   * across Microsoft Excel, Google Sheets, and standard spreadsheet tools.
+   */
+  exportTableToCsv(options: {
+    filename: string;
+    headers: string[];
+    rows: (string | number | null | undefined)[][];
+    title?: string;
+  }): void {
+    const escapeCell = (val: string | number | null | undefined): string => {
+      if (val === null || val === undefined) return '';
+      const str = String(val);
+      if (str.includes(',') || str.includes('\n') || str.includes('\r') || str.includes('"')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const lines: string[] = [];
+
+    // Clean column headers on line 1 for spreadsheet compatibility
+    lines.push(options.headers.map(escapeCell).join(','));
+
+    // Data rows
+    for (const row of options.rows) {
+      lines.push(row.map(escapeCell).join(','));
+    }
+
+    // Prepend UTF-8 BOM so Excel opens with correct character encoding (preserves ₹ and commas)
+    const csvContent = '\uFEFF' + lines.join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${options.filename}.csv`);
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 }

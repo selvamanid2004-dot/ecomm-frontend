@@ -35,6 +35,9 @@ export interface SiteContent {
           <button (click)="exportPdf()" type="button" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export CMS configuration as PDF">
             <span>📄</span> Export PDF
           </button>
+          <button (click)="exportCsv()" type="button" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export CMS configuration as CSV">
+            <span>📑</span> Export CSV
+          </button>
           <button (click)="exportExcel()" type="button" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export CMS configuration as Excel">
             <span>📊</span> Export Excel
           </button>
@@ -362,6 +365,29 @@ export class AdminContentComponent implements OnInit {
       headers,
       rows,
       orientation: 'l',
+    });
+  }
+
+  exportCsv(): void {
+    const c = this.content;
+    const headers = ['CMS Section', 'Configuration Field Key', 'Field Description', 'Configured Text Copy', 'Status'];
+    const rows = [
+      ['Top Announcement Bar', 'announcement_text', 'Top banner promotional copy', c.announcement_text || '', 'Active'],
+      ['Top Announcement Bar', 'announcement_badge', 'Badge highlight label', c.announcement_badge || '', 'Active'],
+      ['Brand Identity', 'brand_name', 'Storefront brand name', c.brand_name || '', 'Active'],
+      ['Brand Identity', 'brand_tag', 'Storefront tagline', c.brand_tag || '', 'Active'],
+      ['Hero Showcase', 'hero_badge', 'Hero collection badge', c.hero_badge || '', 'Active'],
+      ['Hero Showcase', 'hero_heading', 'Main hero heading', c.hero_heading || '', 'Active'],
+      ['Hero Showcase', 'hero_subheading', 'Hero narrative description', c.hero_subheading || '', 'Active'],
+      ['Creations Section', 'products_section_title', 'Creations section header', c.products_section_title || '', 'Active'],
+      ['Creations Section', 'products_section_subtitle', 'Creations section subtitle', c.products_section_subtitle || '', 'Active'],
+      ['Footer & Legal', 'footer_text', 'Footer copyright and boutique notice', c.footer_text || '', 'Active'],
+    ];
+
+    this.exportService.exportTableToCsv({
+      filename: `Website_Content_Config_${Date.now()}`,
+      headers,
+      rows,
     });
   }
 

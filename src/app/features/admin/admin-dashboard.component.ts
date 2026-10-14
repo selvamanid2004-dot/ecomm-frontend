@@ -21,6 +21,9 @@ import { AdminMetrics } from '../../core/models/ecommerce.models';
           <button (click)="exportPdf()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export Dashboard Report as PDF">
             <span>📄</span> Export PDF
           </button>
+          <button (click)="exportCsv()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export Dashboard Report as CSV">
+            <span>📑</span> Export CSV
+          </button>
           <button (click)="exportExcel()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export Dashboard Report as Excel">
             <span>📊</span> Export Excel
           </button>
@@ -311,6 +314,38 @@ export class AdminDashboardComponent implements OnInit {
       filename: `Dashboard_Executive_Report_${Date.now()}`,
       title: 'Executive Dashboard & KPI Analytics Report',
       subtitle: 'Complete real-time revenue, order fulfillment status, and catalog overview',
+      headers,
+      rows,
+    });
+  }
+
+  exportCsv(): void {
+    const m = this.metrics();
+    if (!m) return;
+    const ov = m.overview || ({} as any);
+    const headers = ['Category', 'Key Performance Indicator', 'Value', 'Details / Notes'];
+    const rows: (string | number)[][] = [
+      ['Financial Performance', 'Total Revenue', `₹ ${Number(ov.totalRevenue || 0).toFixed(2)}`, 'Settled customer payments in Indian Rupees (₹)'],
+      ['Fulfillment Operations', 'Total Orders', Number(ov.totalOrders || 0), 'All customer orders placed'],
+      ['Fulfillment Operations', 'Pending Orders', Number(ov.pendingOrders || 0), 'Orders awaiting fulfillment dispatch'],
+      ['Catalog & Inventory', 'Active Products', Number(ov.totalProducts || 0), 'Published live creations on storefront'],
+      ['Catalog & Inventory', 'Low Stock Alerts', Number(ov.lowStockProducts || 0), 'Products at or below reorder threshold'],
+      ['Customer Base', 'Total Customers', Number(ov.totalCustomers || 0), 'Registered customer accounts'],
+    ];
+
+    if (m.recentOrders && m.recentOrders.length > 0) {
+      m.recentOrders.forEach((o) => {
+        rows.push([
+          'Recent Orders',
+          `Order #${o.orderNumber}`,
+          `₹ ${Number(o.totalAmount || 0).toFixed(2)}`,
+          `Customer: ${o.customerName} | Status: ${(o.status || '').toUpperCase()} | Placed: ${new Date(o.createdAt).toLocaleDateString('en-IN')}`,
+        ]);
+      });
+    }
+
+    this.exportService.exportTableToCsv({
+      filename: `Dashboard_Executive_Report_${Date.now()}`,
       headers,
       rows,
     });

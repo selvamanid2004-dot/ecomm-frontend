@@ -28,10 +28,13 @@ import { ExportService } from '../../core/services/export.service';
             />
           </div>
 
-          <button (click)="exportPdf()" [disabled]="exporting()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export customers directory as PDF">
+          <button (click)="initiateExport('pdf')" [disabled]="exporting()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export customers directory as PDF">
             <span>📄</span> Export PDF
           </button>
-          <button (click)="exportExcel()" [disabled]="exporting()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export customers directory as Excel">
+          <button (click)="initiateExport('csv')" [disabled]="exporting()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export customers directory as CSV">
+            <span>📑</span> Export CSV
+          </button>
+          <button (click)="initiateExport('excel')" [disabled]="exporting()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export customers directory as Excel">
             <span>📊</span> Export Excel
           </button>
 
@@ -103,6 +106,62 @@ import { ExportService } from '../../core/services/export.service';
           </table>
         </div>
       </div>
+
+      <!-- Export Scope Selection Modal -->
+      <div class="modal-backdrop" *ngIf="exportModalOpen()" (click)="exportModalOpen.set(false)">
+        <div class="modal-dialog max-w-md p-0 overflow-hidden" (click)="$event.stopPropagation()">
+          <div class="p-5 border-b flex-between bg-slate-50">
+            <div>
+              <h2 class="text-base font-extrabold text-slate-900">Export Customer Accounts</h2>
+              <span class="text-xs text-muted mt-0.5 block">Format: {{ exportTargetFormat().toUpperCase() }}</span>
+            </div>
+            <button (click)="exportModalOpen.set(false)" class="modal-close-btn">&times;</button>
+          </div>
+
+          <div class="p-5">
+            <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg mb-4 text-xs text-amber-900">
+              <strong>Active Filter Applied:</strong>
+              <div class="mt-1">Search: "<span class="font-bold">{{ searchQuery }}</span>"</div>
+            </div>
+
+            <p class="text-xs text-slate-600 mb-4">
+              Choose whether to export only the patrons matching your search query or all registered customer accounts:
+            </p>
+
+            <div class="flex flex-col gap-2.5">
+              <button
+                type="button"
+                (click)="confirmExport('filtered')"
+                class="btn btn-secondary text-xs font-bold py-3 px-4 flex items-center justify-between text-left"
+              >
+                <div>
+                  <div class="text-slate-900 font-extrabold">Export Filtered Results</div>
+                  <div class="text-[11px] text-muted">Patrons matching "{{ searchQuery }}"</div>
+                </div>
+                <span class="badge badge-amber text-xs font-bold">{{ customers().length }} Patrons</span>
+              </button>
+
+              <button
+                type="button"
+                (click)="confirmExport('all')"
+                class="btn btn-primary text-xs font-bold py-3 px-4 flex items-center justify-between text-left"
+              >
+                <div>
+                  <div class="text-white font-extrabold">Export All Customer Accounts</div>
+                  <div class="text-slate-300 text-[11px]">Complete registered database patrons</div>
+                </div>
+                <span class="badge badge-slate text-xs font-bold">All Registered</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="p-4 bg-slate-50 border-t flex justify-end">
+            <button type="button" (click)="exportModalOpen.set(false)" class="btn btn-secondary btn-sm font-bold">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   `,
   styles: [`
@@ -129,6 +188,8 @@ export class AdminCustomersComponent implements OnInit {
 
   customers = signal<any[]>([]);
   exporting = signal(false);
+  exportModalOpen = signal(false);
+  exportTargetFormat = signal<'pdf' | 'csv' | 'excel'>('pdf');
   searchQuery = '';
 
   ngOnInit(): void {
@@ -145,31 +206,127 @@ export class AdminCustomersComponent implements OnInit {
     this.fetchCustomers();
   }
 
-  exportPdf(): void {
+  initiateExport(format: 'pdf' | 'csv' | 'excel'): void {
+    if (this.searchQuery && this.searchQuery.trim()) {
+      this.exportTargetFormat.set(format);
+      this.exportModalOpen.set(true);
+    } else {
+      this.executeCustomersExport(format, 'all');
+    }
+  }
+
+  confirmExport(scope: 'filtered' | 'all'): void {
+    const fmt = this.exportTargetFormat();
+    this.exportModalOpen.set(false);
+    this.executeCustomersExport(fmt, scope);
+  }
+
+  executeCustomersExport(format: 'pdf' | 'csv' | 'excel', scope: 'filtered' | 'all'): void {
     this.exporting.set(true);
-    this.adminService.getCustomers({ all: 'true' }, true).subscribe({
+    const params: any = { all: 'true' };
+    if (scope === 'filtered' && this.searchQuery.trim()) {
+      params.search = this.searchQuery.trim();
+    }
+
+    this.adminService.getCustomers(params, true).subscribe({
       next: (res) => {
         this.exporting.set(false);
-        const list = res.success ? (res.data || []) : this.customers();
-        const headers = ['Customer Name', 'Email Address', 'Phone', 'Loyalty Tier', 'Total Orders', 'Lifetime Spend (₹)', 'Registration Date'];
-        const rows = list.map((c: any) => [
-          c.name || 'Customer',
-          c.email || '—',
-          c.phone || '—',
-          `${c.loyaltyPoints || 0} pts`,
-          String(c.totalOrders || 0),
-          `₹ ${Number(c.totalSpend || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
-          c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-IN') : '—',
-        ]);
+        const list = res.success ? (res.data || []) : (scope === 'filtered' ? this.customers() : []);
+        if (list.length === 0) {
+          alert('No customer records found matching the export criteria.');
+          return;
+        }
 
-        this.exportService.exportTableToPdf({
-          filename: `Customers_Directory_Export_${Date.now()}`,
-          title: 'Registered Customer Accounts & Engagement Report',
-          subtitle: `Total Registered Patrons: ${list.length} | Master Records`,
-          headers,
-          rows,
-          orientation: 'l',
-        });
+        const timestamp = Date.now();
+        const scopeLabel = scope === 'filtered' ? 'Filtered' : 'Full';
+
+        if (format === 'pdf') {
+          const headers = [
+            'Customer ID',
+            'Customer Name',
+            'Email Address',
+            'Phone',
+            'Loyalty Tier',
+            'Orders',
+            'Lifetime Spend (₹)',
+            'Registration Date',
+          ];
+          const rows = list.map((c: any) => [
+            c.id || c.userId || '—',
+            c.name || 'Customer',
+            c.email || '—',
+            c.phone || '—',
+            `${c.loyaltyPoints || 0} pts`,
+            String(c.totalOrders || 0),
+            `₹ ${Number(c.totalSpend || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+            c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-IN') : '—',
+          ]);
+
+          this.exportService.exportTableToPdf({
+            filename: `Customers_${scopeLabel}_Export_${timestamp}`,
+            title: `Customer Accounts Directory (${scopeLabel} Database)`,
+            subtitle: `Total Customers: ${list.length} | Generated: ${new Date().toLocaleString('en-IN')}`,
+            headers,
+            rows,
+            orientation: 'l',
+          });
+        } else if (format === 'csv') {
+          const headers = [
+            'Customer ID',
+            'Full Name',
+            'Email Address',
+            'Phone Number',
+            'Loyalty Points',
+            'Total Orders',
+            'Lifetime Spend (₹)',
+            'Registration Date',
+          ];
+          const rows = list.map((c: any) => [
+            c.id || c.userId || '',
+            c.name || 'Customer',
+            c.email || '',
+            c.phone || '',
+            Number(c.loyaltyPoints || 0),
+            Number(c.totalOrders || 0),
+            `₹ ${Number(c.totalSpend || 0).toFixed(2)}`,
+            c.createdAt ? new Date(c.createdAt).toISOString() : '',
+          ]);
+
+          this.exportService.exportTableToCsv({
+            filename: `Customers_${scopeLabel}_Export_${timestamp}`,
+            headers,
+            rows,
+          });
+        } else if (format === 'excel') {
+          const headers = [
+            'Customer ID',
+            'Full Name',
+            'Email Address',
+            'Phone Number',
+            'Loyalty Points',
+            'Total Orders',
+            'Lifetime Spend (₹)',
+            'Registration Date',
+          ];
+          const rows = list.map((c: any) => [
+            c.id || c.userId || '',
+            c.name || 'Customer',
+            c.email || '',
+            c.phone || '',
+            Number(c.loyaltyPoints || 0),
+            Number(c.totalOrders || 0),
+            Number(c.totalSpend || 0),
+            c.createdAt ? new Date(c.createdAt).toISOString() : '',
+          ]);
+
+          this.exportService.exportTableToExcel({
+            filename: `Customers_${scopeLabel}_Export_${timestamp}`,
+            sheetName: 'Customers',
+            title: `Master Customer Accounts Directory (${scopeLabel} Database)`,
+            headers,
+            rows,
+          });
+        }
       },
       error: () => {
         this.exporting.set(false);
@@ -178,37 +335,12 @@ export class AdminCustomersComponent implements OnInit {
     });
   }
 
-  exportExcel(): void {
-    this.exporting.set(true);
-    this.adminService.getCustomers({ all: 'true' }, true).subscribe({
-      next: (res) => {
-        this.exporting.set(false);
-        const list = res.success ? (res.data || []) : this.customers();
-        const headers = ['Customer ID', 'Full Name', 'Email Address', 'Phone Number', 'Loyalty Points', 'Total Orders', 'Lifetime Spend (₹)', 'Registration Date'];
-        const rows = list.map((c: any) => [
-          c.id || c.userId || '',
-          c.name || 'Customer',
-          c.email || '',
-          c.phone || '',
-          Number(c.loyaltyPoints || 0),
-          Number(c.totalOrders || 0),
-          Number(c.totalSpend || 0),
-          c.createdAt ? new Date(c.createdAt).toISOString() : '',
-        ]);
+  exportPdf(): void {
+    this.initiateExport('pdf');
+  }
 
-        this.exportService.exportTableToExcel({
-          filename: `Customers_Directory_Export_${Date.now()}`,
-          sheetName: 'Customers',
-          title: 'Master Customer Directory & Spend Analysis',
-          headers,
-          rows,
-        });
-      },
-      error: () => {
-        this.exporting.set(false);
-        alert('Failed to retrieve full customer directory for export.');
-      },
-    });
+  exportExcel(): void {
+    this.initiateExport('excel');
   }
 
   deleteCustomer(c: any): void {

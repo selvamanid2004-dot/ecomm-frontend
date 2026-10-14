@@ -29,10 +29,13 @@ import { Order } from '../../core/models/ecommerce.models';
             />
           </div>
 
-          <button (click)="exportAllPdf()" [disabled]="exporting()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export all orders as PDF">
+          <button (click)="initiateExport('pdf')" [disabled]="exporting()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export orders as PDF">
             <span>📄</span> Export PDF
           </button>
-          <button (click)="exportAllExcel()" [disabled]="exporting()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export all orders as Excel">
+          <button (click)="initiateExport('csv')" [disabled]="exporting()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export orders as CSV">
+            <span>📑</span> Export CSV
+          </button>
+          <button (click)="initiateExport('excel')" [disabled]="exporting()" class="btn btn-secondary btn-sm font-bold flex items-center gap-1.5" title="Export orders as Excel">
             <span>📊</span> Export Excel
           </button>
 
@@ -473,6 +476,60 @@ import { Order } from '../../core/models/ecommerce.models';
               </div>
             </div>
           </form>
+      <!-- Export Scope Selection Modal -->
+      <div class="modal-backdrop" *ngIf="exportModalOpen()" (click)="exportModalOpen.set(false)">
+        <div class="modal-dialog max-w-md p-0 overflow-hidden" (click)="$event.stopPropagation()">
+          <div class="p-5 border-b flex-between bg-slate-50">
+            <div>
+              <h2 class="text-base font-extrabold text-slate-900">Export Orders Data</h2>
+              <span class="text-xs text-muted mt-0.5 block">Format: {{ exportTargetFormat().toUpperCase() }}</span>
+            </div>
+            <button (click)="exportModalOpen.set(false)" class="modal-close-btn">&times;</button>
+          </div>
+
+          <div class="p-5">
+            <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg mb-4 text-xs text-amber-900">
+              <strong>Active Filters Applied:</strong>
+              <div class="mt-1" *ngIf="statusFilter">Status: <span class="font-bold uppercase">{{ statusFilter }}</span></div>
+              <div class="mt-0.5" *ngIf="searchQuery()">Search: "<span class="font-bold">{{ searchQuery() }}</span>"</div>
+            </div>
+
+            <p class="text-xs text-slate-600 mb-4">
+              Choose whether to export only the orders matching your current filter criteria or all records from the database:
+            </p>
+
+            <div class="flex flex-col gap-2.5">
+              <button
+                type="button"
+                (click)="confirmExport('filtered')"
+                class="btn btn-secondary text-xs font-bold py-3 px-4 flex items-center justify-between text-left"
+              >
+                <div>
+                  <div class="text-slate-900 font-extrabold">Export Filtered Results</div>
+                  <div class="text-[11px] text-muted">Orders matching current status/search</div>
+                </div>
+                <span class="badge badge-amber text-xs font-bold">{{ orders().length }} Orders</span>
+              </button>
+
+              <button
+                type="button"
+                (click)="confirmExport('all')"
+                class="btn btn-primary text-xs font-bold py-3 px-4 flex items-center justify-between text-left"
+              >
+                <div>
+                  <div class="text-white font-extrabold">Export All Database Records</div>
+                  <div class="text-slate-300 text-[11px]">Complete master database orders</div>
+                </div>
+                <span class="badge badge-slate text-xs font-bold">{{ totalOrdersCount() }} Orders</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="p-4 bg-slate-50 border-t flex justify-end">
+            <button type="button" (click)="exportModalOpen.set(false)" class="btn btn-secondary btn-sm font-bold">
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1008,97 +1065,211 @@ export class AdminOrdersComponent implements OnInit, OnDestroy {
     }
   }
 
-  exportAllPdf(): void {
+  exportModalOpen = signal(false);
+  exportTargetFormat = signal<'pdf' | 'csv' | 'excel'>('pdf');
+
+  initiateExport(format: 'pdf' | 'csv' | 'excel'): void {
+    if (this.statusFilter || this.searchQuery().trim()) {
+      this.exportTargetFormat.set(format);
+      this.exportModalOpen.set(true);
+    } else {
+      this.executeOrdersExport(format, 'all');
+    }
+  }
+
+  confirmExport(scope: 'filtered' | 'all'): void {
+    const fmt = this.exportTargetFormat();
+    this.exportModalOpen.set(false);
+    this.executeOrdersExport(fmt, scope);
+  }
+
+  executeOrdersExport(format: 'pdf' | 'csv' | 'excel', scope: 'filtered' | 'all'): void {
     this.exporting.set(true);
-    this.adminService.getOrders({ all: 'true' }, true).subscribe({
+    const params: any = { all: 'true' };
+    if (scope === 'filtered') {
+      if (this.statusFilter) params.status = this.statusFilter;
+      if (this.searchQuery().trim()) params.search = this.searchQuery().trim();
+    }
+
+    this.adminService.getOrders(params, true).subscribe({
       next: (res) => {
         this.exporting.set(false);
-        const orderList = res.success ? (res.data || []) : this.orders();
-        const headers = ['Order #', 'Invoice #', 'Customer / Recipient', 'Amount (₹)', 'Payment', 'Status', 'Tracking #', 'Placed Date'];
-        const rows = orderList.map((o) => {
-          const inv = (o as any).invoice_number || `INV-${(o.order_number || o.id).replace('ORD-', '')}`;
-          const cust = (o as any).shipping_address_json?.recipient_name || o.guest_email || 'Patron';
-          const email = o.guest_email ? ` (${o.guest_email})` : '';
-          const amt = `₹ ${Number(o.total_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
-          const pay = (o.payment_status || 'PAID').toUpperCase();
-          const st = (o.status || '').toUpperCase();
-          const trk = o.tracking_number || 'UNASSIGNED';
-          const d = o.created_at ? new Date(o.created_at).toLocaleDateString('en-IN') : '—';
-          return [o.order_number, inv, `${cust}${email}`, amt, pay, st, trk, d];
-        });
+        const orderList = res.success ? (res.data || []) : (scope === 'filtered' ? this.orders() : []);
+        if (orderList.length === 0) {
+          alert('No orders found matching the export criteria.');
+          return;
+        }
 
-        this.exportService.exportTableToPdf({
-          filename: `Orders_Full_Export_${Date.now()}`,
-          title: 'Complete Customer Orders & Fulfillment Register',
-          subtitle: `Total Orders: ${orderList.length} | Master Database Records`,
-          headers,
-          rows,
-          orientation: 'l',
-        });
+        const timestamp = Date.now();
+        const scopeLabel = scope === 'filtered' ? 'Filtered' : 'Full';
+
+        if (format === 'pdf') {
+          const headers = [
+            'Order #',
+            'Invoice #',
+            'Date',
+            'Customer / Recipient',
+            'Products Ordered',
+            'Qty',
+            'Total (₹)',
+            'Payment',
+            'Status',
+            'Tracking #',
+          ];
+          const rows = orderList.map((o) => {
+            const inv = (o as any).invoice_number || `INV-${(o.order_number || o.id).replace('ORD-', '')}`;
+            const ship = (o as any).shipping_address_json || {};
+            const cust = ship.recipient_name || o.guest_email || 'Patron';
+            const email = o.guest_email || ship.email ? ` (${o.guest_email || ship.email})` : '';
+            const rawItems: any[] = (o as any).items || [];
+            const prodSummary = rawItems.length > 0
+              ? rawItems.map((it) => `${it.product_name || 'Item'} (x${it.quantity || 1})`).join(', ')
+              : 'Standard Creation';
+            const totalQty = rawItems.length > 0
+              ? rawItems.reduce((acc, it) => acc + Number(it.quantity || 1), 0)
+              : 1;
+            const amt = `₹ ${Number(o.total_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+            const pay = `${(o.payment_status || 'PAID').toUpperCase()}`;
+            const st = (o.status || '').toUpperCase();
+            const trk = o.tracking_number || 'UNASSIGNED';
+            const d = o.created_at ? new Date(o.created_at).toLocaleDateString('en-IN') : '—';
+            return [o.order_number, inv, d, `${cust}${email}`, prodSummary, totalQty, amt, pay, st, trk];
+          });
+
+          this.exportService.exportTableToPdf({
+            filename: `Orders_${scopeLabel}_Export_${timestamp}`,
+            title: `Orders Register (${scopeLabel} Database)`,
+            subtitle: `Total Orders: ${orderList.length} | Generated: ${new Date().toLocaleString('en-IN')}`,
+            headers,
+            rows,
+            orientation: 'l',
+          });
+        } else if (format === 'csv') {
+          const headers = [
+            'Order ID',
+            'Invoice Number',
+            'Placed Date',
+            'Customer Name',
+            'Customer Email',
+            'Customer Phone',
+            'Shipping City',
+            'Shipping State',
+            'Products Ordered',
+            'Total Quantity',
+            'Subtotal (₹)',
+            'Total Amount (₹)',
+            'Payment Method',
+            'Payment Status',
+            'Order Status',
+            'Carrier Tracking',
+          ];
+          const rows = orderList.map((o) => {
+            const inv = (o as any).invoice_number || `INV-${(o.order_number || o.id).replace('ORD-', '')}`;
+            const ship = (o as any).shipping_address_json || {};
+            const rawItems: any[] = (o as any).items || [];
+            const prodSummary = rawItems.length > 0
+              ? rawItems.map((it) => `${it.product_name || 'Item'} (x${it.quantity || 1})`).join(', ')
+              : 'Standard Creation';
+            const totalQty = rawItems.length > 0
+              ? rawItems.reduce((acc, it) => acc + Number(it.quantity || 1), 0)
+              : 1;
+            const d = o.created_at ? new Date(o.created_at).toISOString() : '';
+            return [
+              o.order_number,
+              inv,
+              d,
+              ship.recipient_name || o.guest_email || 'Patron',
+              o.guest_email || ship.email || '',
+              ship.phone || '',
+              ship.city || '',
+              ship.state || '',
+              prodSummary,
+              totalQty,
+              `₹ ${Number((o as any).subtotal || o.total_amount || 0).toFixed(2)}`,
+              `₹ ${Number(o.total_amount || 0).toFixed(2)}`,
+              o.payment_method || 'Online Card / UPI',
+              o.payment_status || 'paid',
+              o.status || 'pending',
+              o.tracking_number || '',
+            ];
+          });
+
+          this.exportService.exportTableToCsv({
+            filename: `Orders_${scopeLabel}_Export_${timestamp}`,
+            headers,
+            rows,
+          });
+        } else if (format === 'excel') {
+          const headers = [
+            'Order ID',
+            'Invoice Number',
+            'Placed Date',
+            'Customer Name',
+            'Customer Email',
+            'Customer Phone',
+            'Shipping City',
+            'Shipping State',
+            'Products Ordered',
+            'Total Quantity',
+            'Subtotal (₹)',
+            'Total Amount (₹)',
+            'Payment Method',
+            'Payment Status',
+            'Order Status',
+            'Carrier Tracking',
+          ];
+          const rows = orderList.map((o) => {
+            const inv = (o as any).invoice_number || `INV-${(o.order_number || o.id).replace('ORD-', '')}`;
+            const ship = (o as any).shipping_address_json || {};
+            const rawItems: any[] = (o as any).items || [];
+            const prodSummary = rawItems.length > 0
+              ? rawItems.map((it) => `${it.product_name || 'Item'} (x${it.quantity || 1})`).join(', ')
+              : 'Standard Creation';
+            const totalQty = rawItems.length > 0
+              ? rawItems.reduce((acc, it) => acc + Number(it.quantity || 1), 0)
+              : 1;
+            return [
+              o.order_number,
+              inv,
+              o.created_at ? new Date(o.created_at).toISOString() : '',
+              ship.recipient_name || o.guest_email || 'Patron',
+              o.guest_email || ship.email || '',
+              ship.phone || '',
+              ship.city || '',
+              ship.state || '',
+              prodSummary,
+              totalQty,
+              Number((o as any).subtotal || o.total_amount || 0),
+              Number(o.total_amount || 0),
+              o.payment_method || 'Online Card / UPI',
+              o.payment_status || 'paid',
+              o.status || 'pending',
+              o.tracking_number || '',
+            ];
+          });
+
+          this.exportService.exportTableToExcel({
+            filename: `Orders_${scopeLabel}_Export_${timestamp}`,
+            sheetName: 'Orders Register',
+            title: `Orders Register (${scopeLabel} Database)`,
+            headers,
+            rows,
+          });
+        }
       },
       error: () => {
         this.exporting.set(false);
-        alert('Failed to retrieve full orders list for export.');
+        alert('Failed to retrieve orders list for export.');
       },
     });
   }
 
-  exportAllExcel(): void {
-    this.exporting.set(true);
-    this.adminService.getOrders({ all: 'true' }, true).subscribe({
-      next: (res) => {
-        this.exporting.set(false);
-        const orderList = res.success ? (res.data || []) : this.orders();
-        const headers = [
-          'Order ID',
-          'Invoice Number',
-          'Customer Name',
-          'Customer Email',
-          'Phone',
-          'City',
-          'State',
-          'Subtotal (₹)',
-          'Total Amount (₹)',
-          'Payment Method',
-          'Payment Status',
-          'Fulfillment Status',
-          'Carrier Tracking',
-          'Placed Date',
-        ];
-        const rows = orderList.map((o) => {
-          const inv = (o as any).invoice_number || `INV-${(o.order_number || o.id).replace('ORD-', '')}`;
-          const ship = (o as any).shipping_address_json || {};
-          return [
-            o.order_number,
-            inv,
-            ship.recipient_name || o.guest_email || 'Patron',
-            o.guest_email || ship.email || '',
-            ship.phone || '',
-            ship.city || '',
-            ship.state || '',
-            Number((o as any).subtotal || o.total_amount || 0),
-            Number(o.total_amount || 0),
-            o.payment_method || 'credit_card',
-            o.payment_status || 'paid',
-            o.status || 'pending',
-            o.tracking_number || '',
-            o.created_at ? new Date(o.created_at).toISOString() : '',
-          ];
-        });
+  exportAllPdf(): void {
+    this.initiateExport('pdf');
+  }
 
-        this.exportService.exportTableToExcel({
-          filename: `Orders_Full_Export_${Date.now()}`,
-          sheetName: 'All Orders',
-          title: 'Master Customer Orders Directory',
-          headers,
-          rows,
-        });
-      },
-      error: () => {
-        this.exporting.set(false);
-        alert('Failed to retrieve full orders list for export.');
-      },
-    });
+  exportAllExcel(): void {
+    this.initiateExport('excel');
   }
 
   async downloadInvoice(ord: Order): Promise<void> {
